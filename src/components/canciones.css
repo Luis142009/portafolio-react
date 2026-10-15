@@ -1,0 +1,394 @@
+/* =========================================================
+   MIS CANCIONES · panel rectangular del portafolio
+   Usa las variables de tu CSS: --blue-*, --cyan, --ink, --gold,
+   --font-title, --font-body
+   ========================================================= */
+
+.cn {
+  width: min(920px, 94vw);
+  margin: 0 auto;
+  color: #fff;
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .08) 1.5px, transparent 2px) 0 0 / 18px 18px,
+    #07226e;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 0 8px 0 rgba(43, 26, 26, .55), 0 18px 36px rgba(0, 0, 0, .3);
+  overflow: hidden;
+}
+
+/* ---------- Cabecera ---------- */
+.cn-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .7rem 1.1rem;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .28) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, var(--blue-2), var(--blue-3));
+  border-bottom: 3px solid var(--ink);
+}
+
+.cn-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  line-height: 1;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  -webkit-text-stroke: 6px #fff;
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--blue-1);
+}
+
+.cn-meter {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-family: var(--font-title);
+}
+
+.cn-meter__count {
+  padding: .1em .6em;
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 3px 0 var(--ink);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.cn-meter__track {
+  position: relative;
+  width: clamp(60px, 14vw, 130px);
+  height: .8rem;
+  background: rgba(255, 255, 255, .16);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cn-meter__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .3) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, var(--cyan), var(--blue-2));
+  transition: width .5s ease;
+}
+
+/* ---------- Cuerpo ---------- */
+.cn-body {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 1.1rem;
+  padding: 1.1rem;
+}
+
+/* ---------- Lista ---------- */
+.cn-list {
+  display: grid;
+  align-content: start;
+  gap: .6rem;
+  max-height: 340px;
+  padding: 2px 6px 6px 2px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.cn-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .75rem;
+  width: 100%;
+  padding: .55rem .8rem;
+  text-align: left;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--ink);
+  transition: transform .15s, box-shadow .15s, background .15s;
+}
+
+.cn-item:hover { transform: translateY(-2px); background: rgba(255, 255, 255, .16); box-shadow: 0 6px 0 var(--ink); }
+.cn-item:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.cn-item:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+.cn-item.is-active {
+  color: var(--ink);
+  background: #fff;
+}
+
+.cn-item.is-locked:not(.is-active) { opacity: .72; }
+
+.cn-item__num {
+  font-family: var(--font-title);
+  font-size: 1.15rem;
+  color: var(--cyan);
+  text-shadow: 0 2px 0 var(--ink);
+}
+.cn-item.is-active .cn-item__num { color: var(--blue-2); text-shadow: none; }
+
+.cn-item__text { display: grid; min-width: 0; line-height: 1.2; }
+
+.cn-item__name {
+  font-family: var(--font-title);
+  font-size: 1.05rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cn-item__artist {
+  font-size: .8rem;
+  opacity: .8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cn-lock { width: 1.1rem; height: 1.1rem; fill: currentColor; opacity: .85; }
+
+/* ---------- Detalle ---------- */
+.cn-detail {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.cn-detail__top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cn-detail__info { min-width: 0; }
+
+.cn-detail__name {
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: clamp(1.4rem, 3.4vw, 2rem);
+  line-height: 1.05;
+  color: var(--blue-1);
+}
+
+.cn-detail__artist { margin: .15rem 0 .5rem; font-size: .95rem; }
+
+.cn-tags { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+.cn-tag {
+  padding: .05em .7em;
+  font-family: var(--font-title);
+  font-size: .8rem;
+  color: #fff;
+  background: var(--blue-2);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 2px 0 var(--ink);
+}
+.cn-tag--gold { color: var(--ink); background: var(--gold); }
+
+/* disco de vinilo */
+.cn-disc {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: clamp(84px, 16vw, 120px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  background:
+    conic-gradient(from 0deg, transparent 0 38%, rgba(255, 255, 255, .22) 46%, transparent 54% 88%, rgba(255, 255, 255, .14) 94%, transparent),
+    radial-gradient(circle, transparent 0 34%, rgba(255, 255, 255, .1) 35% 36%, transparent 37% 52%, rgba(255, 255, 255, .08) 53% 54%, transparent 55%),
+    #111;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 6px 0 rgba(43, 26, 26, .55);
+}
+
+.cn-disc img { width: 100%; height: 100%; object-fit: cover; }
+
+.cn-disc__label {
+  display: grid;
+  place-items: center;
+  width: 38%;
+  aspect-ratio: 1;
+  font-family: var(--font-title);
+  font-size: clamp(1rem, 3vw, 1.5rem);
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+}
+
+.cn-disc.is-locked { filter: grayscale(.85) brightness(.85); }
+
+/* canción encontrada: el disco gira */
+.cn-disc.is-spinning { animation: cn-spin 3.5s linear infinite; }
+@keyframes cn-spin { to { transform: rotate(360deg); } }
+
+/* nota: qué significa para mí */
+.cn-note {
+  position: relative;
+  padding: 1.5rem 1rem 1rem;
+  background: #eaf4ff;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+}
+
+.cn-note__label {
+  position: absolute;
+  top: -.85rem;
+  left: .8rem;
+  padding: .1em .75em;
+  font-family: var(--font-title);
+  font-size: .9rem;
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(-2deg);
+}
+
+.cn-note p { margin: 0; line-height: 1.45; font-size: 1rem; }
+
+/* ---------- Celular ---------- */
+@media (max-width: 720px) {
+  .cn-body { grid-template-columns: 1fr; }
+  .cn-list { max-height: 220px; }
+  .cn-head { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-item, .cn-meter__fill { transition: none; }
+}
+
+/* ---------- Sección que contiene el panel (App.jsx) ---------- */
+.songs {
+  position: relative;
+  padding: clamp(2.5rem, 8vw, 5rem) 0 clamp(3rem, 9vw, 6rem);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .1) 2px, transparent 2.5px) 0 0 / 22px 22px,
+    linear-gradient(180deg, var(--blue-1), var(--blue-2));
+}
+
+/* ---------- Botón fijo + ventana ---------- */
+.cn-fab {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 9990;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .35rem .9rem;
+  font-family: var(--font-title);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 4px 0 var(--ink);
+  transition: transform .15s, box-shadow .15s;
+}
+.cn-fab:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--ink); }
+.cn-fab:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.cn-fab:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+.cn-fab__count {
+  padding: 0 .55em;
+  font-size: .8rem;
+  color: #fff;
+  background: var(--blue-1);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+
+.cn-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9995;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow-y: auto;
+  background: rgba(7, 34, 110, .72);
+  backdrop-filter: blur(3px);
+  animation: cn-fade .2s ease-out;
+}
+
+.cn-overlay .cn {
+  max-height: 92svh;
+  overflow-y: auto;
+  animation: cn-pop .3s cubic-bezier(.2, 1.4, .4, 1);
+}
+
+.cn-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  font-family: var(--font-title);
+  font-size: 1rem;
+  color: #fff;
+  background: var(--blue-1);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 3px 0 var(--ink);
+  transition: transform .15s, box-shadow .15s;
+}
+.cn-close:hover { transform: translateY(-1px); }
+.cn-close:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.cn-close:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+@keyframes cn-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cn-pop { from { opacity: 0; transform: scale(.9) translateY(12px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-overlay, .cn-overlay .cn, .cn-disc.is-spinning { animation: none; }
+}
+
+/* ---------- Reproducir desde el panel ---------- */
+button.cn-disc--btn {
+  padding: 0;
+  cursor: inherit;
+  transition: filter .2s;
+}
+button.cn-disc--btn:hover { filter: brightness(1.25); }
+button.cn-disc--btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+
+.cn-play {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  margin-top: .7rem;
+  padding: .3rem .9rem .3rem .7rem;
+  font-family: var(--font-title);
+  font-size: .95rem;
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 4px 0 var(--ink);
+  transition: transform .15s, box-shadow .15s;
+}
+.cn-play svg { width: 1em; height: 1em; fill: currentColor; }
+.cn-play:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--ink); }
+.cn-play:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.cn-play:focus-visible { outline: 3px solid var(--blue-1); outline-offset: 3px; }
