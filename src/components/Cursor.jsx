@@ -227,6 +227,118 @@ export default function Cursor() {
       }
     }
 
+    // ---------- Piano libre: riff rítmico tipo FNF, sin cortar la canción de fondo ----------
+    let vocesAleatorias = [];
+    let clicsPiano = 0;
+    let ultimoArpegioPiano = 0;
+
+    function crearNotaAleatoria(ctx, midi, inicio, duracion, tipo = 'triangle', volumen = 0.12) {
+      // Piano electrónico/chiptune: ataque corto, cuerpo brillante y caída rápida.
+      const frecuencia = 440 * Math.pow(2, (midi - 69) / 12);
+      const oscilador = ctx.createOscillator();
+      const armonico = ctx.createOscillator();
+      const ganancia = ctx.createGain();
+      const filtro = ctx.createBiquadFilter();
+      const gananciaArmonico = ctx.createGain();
+
+      filtro.type = 'lowpass';
+      filtro.frequency.setValueAtTime(5200, inicio);
+      filtro.frequency.exponentialRampToValueAtTime(1250, inicio + Math.max(0.06, duracion));
+      filtro.Q.setValueAtTime(0.8, inicio);
+
+      oscilador.type = tipo;
+      oscilador.frequency.setValueAtTime(frecuencia, inicio);
+      armonico.type = 'sine';
+      armonico.frequency.setValueAtTime(frecuencia * 2.01, inicio);
+      gananciaArmonico.gain.setValueAtTime(0.22, inicio);
+
+      ganancia.gain.setValueAtTime(0.0001, inicio);
+      ganancia.gain.exponentialRampToValueAtTime(volumen, inicio + 0.006);
+      ganancia.gain.exponentialRampToValueAtTime(Math.max(0.0002, volumen * 0.28), inicio + Math.min(0.055, duracion * 0.35));
+      ganancia.gain.exponentialRampToValueAtTime(0.0001, inicio + duracion);
+
+      oscilador.connect(filtro);
+      armonico.connect(gananciaArmonico);
+      gananciaArmonico.connect(filtro);
+      filtro.connect(ganancia);
+      ganancia.connect(ctx.destination);
+      oscilador.start(inicio);
+      armonico.start(inicio);
+      oscilador.stop(inicio + duracion + 0.035);
+      armonico.stop(inicio + duracion + 0.035);
+      vocesAleatorias.push(oscilador, armonico);
+
+      const limpiar = () => {
+        vocesAleatorias = vocesAleatorias.filter((voz) => voz !== oscilador && voz !== armonico);
+        try {
+          oscilador.disconnect(); armonico.disconnect(); filtro.disconnect();
+          ganancia.disconnect(); gananciaArmonico.disconnect();
+        } catch {}
+      };
+      oscilador.onended = limpiar;
+    }
+
+    function tocarClickPunk(ctx) {
+      const ahora = ctx.currentTime + 0.018;
+      // Piano más cálido y armonioso: melodía en Do mayor, sin ondas cuadradas agresivas.
+      const melodia = [72, 76, 79, 76, 74, 76, 79, 81,
+                       79, 76, 72, 76, 74, 72, 69, 72,
+                       72, 74, 76, 79, 81, 79, 76, 74,
+                       67, 71, 74, 79, 76, 74, 72, 72];
+      const acordes = [
+        [48, 55, 60, 64], // Do mayor
+        [45, 52, 57, 60], // La menor
+        [41, 48, 53, 57], // Fa mayor
+        [43, 50, 55, 59], // Sol mayor
+      ];
+      const paso = clicsPiano % melodia.length;
+      const nota = melodia[paso];
+      const acorde = acordes[Math.floor(paso / 8) % acordes.length];
+      const sincopa = paso % 4 === 2 ? 0.025 : 0;
+      const inicio = ahora + sincopa;
+
+      // Nota principal redonda, como una tecla de piano suave.
+      crearNotaAleatoria(ctx, nota, inicio, 0.34, 'triangle', 0.072);
+
+      // Una octava suave en algunos clics para dar profundidad sin endurecer el sonido.
+      if (paso % 3 === 0) {
+        crearNotaAleatoria(ctx, nota - 12, inicio + 0.012, 0.38, 'sine', 0.026);
+      }
+
+      // Acompañamiento armónico espaciado: notas del acorde, suaves y ligeramente arpegiadas.
+      if (paso % 4 === 0) {
+        [acorde[1], acorde[2], acorde[3]].forEach((n, i) => {
+          crearNotaAleatoria(ctx, n + 12, inicio + 0.045 + i * 0.055, 0.42, 'sine', 0.022);
+        });
+      }
+
+      clicsPiano += 1;
+
+      // Cada ocho clics aparece una pequeña frase fluida, sin sonidos eléctricos.
+      if (clicsPiano % 8 === 0 && ctx.currentTime >= ultimoArpegioPiano) {
+        ultimoArpegioPiano = ctx.currentTime + 0.7;
+        const patron = paso < 16
+          ? [72, 76, 79, 84, 79, 76, 74, 72]
+          : [72, 74, 76, 79, 81, 79, 76, 72];
+        const beat = 60 / 112 / 2;
+        patron.forEach((n, i) => {
+          crearNotaAleatoria(ctx, n, ahora + i * beat, 0.30, 'sine', 0.032);
+        });
+      }
+    }
+
+    async function tocarCancionAleatoria() {
+      const ctx = obtenerContexto();
+      if (!ctx || !liberada.current || juego.activo) return;
+      try {
+        if (ctx.state === 'suspended') await ctx.resume();
+        // Importante: solo añade notas al mismo AudioContext; nunca pausa ni reinicia el fondo.
+        tocarClickPunk(ctx);
+      } catch (error) {
+        console.error('No se pudo reproducir el piano rítmico:', error);
+      }
+    }
+
     // ---------- Piano: mostrar / esconder ----------
     let pianoVisible = false;
     let temporizadorPiano = null;
@@ -802,12 +914,21 @@ export default function Cursor() {
       escenaMacabra();
     }
 
-    // El reproductor de la página pausa / reanuda la música de fondo
+    // El vinilo pausa / reanuda SOLO la música de fondo.
+    // El contexto de audio sigue activo para que los clics de piano puedan sonar encima
+    // sin reactivar accidentalmente la canción cuando el vinilo está pausado.
     const controlMusica = (e) => {
       const ctx = audio.current;
-      if (!ctx || !liberada.current) return;
-      if (e.detail?.sonando) ctx.resume();
-      else ctx.suspend();
+      const gananciaFondo = juego.ganancia?.gain;
+      if (!ctx || !liberada.current || !gananciaFondo) return;
+
+      const ahora = ctx.currentTime;
+      gananciaFondo.cancelScheduledValues(ahora);
+      gananciaFondo.setValueAtTime(gananciaFondo.value, ahora);
+      gananciaFondo.linearRampToValueAtTime(
+        e.detail?.sonando ? VOLUMEN_FONDO : 0,
+        ahora + 0.12
+      );
     };
 
     // Cada cuadro: aparecen las notas que ya toca, bajan, y se marcan las que se pasaron
@@ -856,7 +977,13 @@ export default function Cursor() {
       if (e?.target?.closest?.('[data-piano]')) return;
 
       animarEstrella();
-      if (juego.activo || liberada.current) return;
+
+      // Tras desbloquear la música, cada clic crea una melodía aleatoria.
+      if (juego.activo) return;
+      if (liberada.current) {
+        tocarCancionAleatoria();
+        return;
+      }
 
       mostrarPiano();
       sonar();
@@ -864,7 +991,12 @@ export default function Cursor() {
 
     // Una tecla del piano (con teclado o mouse)
     function tocarTecla(i) {
-      if (liberada.current) return;
+      if (liberada.current) {
+        flashTecla(i);
+        animarEstrella();
+        tocarCancionAleatoria();
+        return;
+      }
 
       if (juego.activo) {
         golpear(i);
@@ -989,6 +1121,15 @@ export default function Cursor() {
       limpiarNotas();
       pulsarRef.current = null;
       iniciarRef.current = null;
+
+      vocesAleatorias.forEach((voz) => {
+        try {
+          voz.stop();
+        } catch {
+          // La voz ya había terminado.
+        }
+      });
+      vocesAleatorias = [];
 
       if (audio.current) {
         audio.current.close();

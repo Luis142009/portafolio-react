@@ -1,0 +1,399 @@
+/* =========================================================
+   SOBRE MÍ · POSICIONAMIENTO MANUAL
+   Cada elemento tiene sus propios left, top, width y height.
+   ========================================================= */
+
+/* ESCENA */
+.frame--about {
+  position: absolute;
+  isolation: isolate;
+  z-index: 50; /* FIX: sube la escena completa sobre las escenas vecinas */
+  box-sizing: border-box;
+  background: #f7c948 !important;
+  overflow: visible;
+}
+
+/* CONTENEDOR DEL CONTENIDO */
+.frame--about .about__stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  overflow: visible;
+  isolation: isolate;
+  container-type: size;
+}
+
+/* =========================================================
+   FONDO DE PAPEL
+   ========================================================= */
+
+.frame--about .l-sm-bg {
+  position: absolute;
+  left: -90px;
+  top: -900px;
+  width: 120%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.frame--about .l-sm-bg > .in {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  transform: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Papel superior */
+.frame--about .sm-bg__top {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: auto;
+  z-index: 1;
+  max-width: none;
+  pointer-events: none;
+}
+
+/* =========================================================
+   PAPEL RASGADO INFERIOR  (MÁXIMA PRIORIDAD)
+   FIX: selector descendiente (ya no depende de ser hijo directo),
+        bottom en un valor visible y z-index por encima de todo.
+   Ajusta bottom / left / width cuando ya lo veas en pantalla.
+   ========================================================= */
+
+.frame--about .sm-bg__bottom--front {
+  position: absolute;
+  left: 770px;
+  right: auto;
+  top: 460px;
+  bottom: 0;
+  width: 60%;
+  height: auto;
+  max-width: none;
+  z-index: 20;
+  pointer-events: none;
+  visibility: visible;
+  opacity: 1;
+}
+
+/* =========================================================
+   TÍTULO SOBRE MÍ
+   ========================================================= */
+
+.frame--about .l-sm-title {
+  position: absolute;
+  left: 590px;
+  top: -120px;
+  width: 60%;
+  height: auto;
+  z-index: 100;
+}
+
+.frame--about .l-sm-title .in {
+  position: relative;
+  width: 100%;
+  height: auto;
+}
+
+.frame--about .l-sm-title img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+
+/* =========================================================
+   TARJETA SOBRE MÍ
+   ========================================================= */
+
+.frame--about .l-sm-card {
+  position: absolute;
+  left: 620px;
+  top: -50px;
+  width: 67%;
+  height: auto;
+  z-index: 5;
+}
+
+.frame--about .l-sm-card .in {
+  position: relative;
+  width: 100%;
+  height: auto;
+}
+
+.frame--about .sm-card {
+  position: relative;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: auto;
+}
+
+.frame--about .sm-card > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+
+.frame--about .sm-text {
+  position: absolute;
+  left: 33%;
+  top: 20%;
+  width: 65%;
+  height: auto;
+  z-index: 2;
+}
+
+.frame--about .sm-text p {
+  position: relative;
+  left: 0;
+  top: 0;
+  width: 100%;
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+/* =========================================================
+   HOJA DE SOFTWARE Y HABILIDADES
+   (dos capas con la misma posición: la hoja y su contenido)
+   ========================================================= */
+
+.frame--about .l-sm-list {
+  position: absolute;
+  left: 680px;
+  top: 720px;
+  width: auto;
+  height: auto;
+  z-index: 21;
+}
+
+.frame--about .l-sm-list .in {
+  position: relative;
+  width: 100%;
+  height: auto;
+  z-index: 21;
+}
+
+.frame--about .sm-list {
+  position: relative;
+  left: 0;
+  top: 0;
+  width: 500px;
+  height: 600px;
+  container-type: inline-size;
+  z-index: 21;
+}
+
+.frame--about .sm-list__paper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  z-index: 0;
+}
+
+/* =========================================================
+   TÍTULO DISEÑO
+   ========================================================= */
+
+.frame--about .sm-diseno {
+  position: absolute;
+  left: 56%;
+  top: -50%;
+  width: 290%;
+  height: auto;
+  z-index: 10;
+  max-width: none;
+}
+
+/* =========================================================
+   PÁRRAFO DESCRIPTIVO DE SOFTWARE
+   ========================================================= */
+
+.frame--about .sm-sub {
+  position: absolute;
+  left: 120%;
+  top: 5%;
+  width: 65%;
+  height: auto;
+  z-index: 10;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  color: #000;
+}
+
+/* =========================================================
+   IMAGEN DE LOS PROGRAMAS
+   Contenedor: imagen + barritas (se mueven y animan juntas)
+   ========================================================= */
+
+.frame--about .sm-software {
+  position: absolute;
+  left: 30%;
+  top: 24%;
+  width: 90%;
+  height: auto;
+  z-index: 10;
+  max-width: none;
+  container-type: inline-size; /* las barras usan cqw respecto a este bloque */
+}
+
+.frame--about .sm-software__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  
+}
+
+/* =========================================================
+   BARRITAS DE HABILIDADES
+   x / y (en %) se asignan desde SKILLS, relativos a la
+   imagen de programas.
+   ========================================================= */
+
+.frame--about .sm-bar {
+  position: absolute;
+
+  top: 0;
+  width: 64%;
+  height: auto;
+  z-index: 12;
+    transform: rotate(20deg) skewX(-10deg);
+}
+
+/* Base amarilla con contorno oscuro grueso (fiel a la referencia) */
+.frame--about .sm-bar__track {
+  position: relative;
+  width: 100%;
+    left: 70%;
+  height: 21cqw;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 2.4cqw solid #14142b;
+  border-radius: 3cqw;
+  background: #ffc72c;
+ 
+}
+
+/* Relleno azul plano con puntitos halftone y línea oscura en la punta */
+.frame--about .sm-bar__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 0%;
+  height: 100%;
+  z-index: 21;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.3) 0.35cqw, transparent 0.5cqw) 0 0 / 2.2cqw 2.2cqw,
+    #1f6fe5;
+  /* corte inclinado: abajo llega más lejos que arriba */
+  clip-path: polygon(0 0, calc(100% - 6cqw) 0, 100% 100%, 0 100%);
+}
+
+/* Línea oscura que sigue la misma diagonal del corte */
+.frame--about .sm-bar__fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #14142b;
+  clip-path: polygon(
+    calc(100% - 8.6cqw) 0,
+    calc(100% - 6cqw) 0,
+    100% 100%,
+    calc(100% - 2.6cqw) 100%
+  );
+}
+
+/* =========================================================
+   PERSONAJE LUIS
+   ========================================================= */
+
+.frame--about .l-sm-char {
+  position: absolute;
+  left: 0;
+  top: 420px;
+  width: 48%;
+  height: auto;
+  z-index: 7;
+}
+
+.frame--about .l-sm-char .in {
+  position: relative;
+  width: 100%;
+  height: auto;
+}
+
+.frame--about .l-sm-char img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+
+/* =========================================================
+   NOTA MUSICAL
+   ========================================================= */
+
+.frame--about .l-sm-nota {
+  position: absolute;
+  left: 0;
+  top: 700px;
+  width: auto;
+  height: auto;
+  z-index: 8;
+}
+
+.frame--about .l-sm-nota .in {
+  position: relative;
+  width: 100%;
+  height: auto;
+}
+
+.frame--about .l-sm-nota img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+
+/* =========================================================
+   AJUSTES PARA IMÁGENES
+   ========================================================= */
+
+.frame--about .l-sm img {
+  max-width: none;
+}
+
+/* =========================================================
+   RESPONSIVE BÁSICO
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .frame--about .sm-text p {
+    font-size: 14px;
+  }
+
+  .frame--about .sm-sub {
+    font-size: 13px;
+  }
+}
