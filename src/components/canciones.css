@@ -4,6 +4,22 @@
    --font-title, --font-body
    ========================================================= */
 
+@font-face {
+  font-family: "Titan";
+  src: url("../assets/fonts/titan.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Smile";
+  src: url("../assets/fonts/smile.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .cn {
   width: min(920px, 94vw);
   margin: 0 auto;
@@ -33,7 +49,7 @@
 
 .cn-title {
   margin: 0;
-  font-family: var(--font-title);
+  font-family: titan, var(--font-title);
   font-weight: 400;
   font-size: clamp(1.4rem, 4vw, 2rem);
   line-height: 1;
@@ -243,6 +259,7 @@
 
 /* nota: qué significa para mí */
 .cn-note {
+   font-family: smile, var(--font-body);
   position: relative;
   padding: 1.5rem 1rem 1rem;
   background: #eaf4ff;

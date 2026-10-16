@@ -1,0 +1,665 @@
+/* =========================================================
+   RETO DE RITMO · cry  (estilo osu!)
+   Misma estética del portafolio: azules, bordes tinta,
+   sombras duras, puntitos, Titan / Smile.
+   ========================================================= */
+
+@font-face {
+  font-family: "Titan";
+  src: url("../assets/titan.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.osu,
+.osu-launch,
+.osu-nota-btn {
+  --o-azul: #1b6fe0;
+  --o-oscuro: #0b2a7a;
+  --o-fondo: #07226e;
+  --o-cian: #2fd4ff;
+  --o-oro: #ffd23f;
+  --o-tinta: #2b1a1a;
+  --o-titulo: "Titan", var(--font-title, "Arial Black"), sans-serif;
+  --o-texto: "Smile", var(--font-body, system-ui), sans-serif;
+}
+
+/* ---------- Botón que abre el reto ---------- */
+
+.osu-launch {
+  position: relative;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: .6em;
+  padding: .55em 1.2em .55em .9em;
+  border: 3px solid var(--o-tinta);
+  border-radius: 14px;
+  background: var(--o-oro);
+  box-shadow: 0 6px 0 rgba(43, 26, 26, .55), 0 14px 30px rgba(0, 0, 0, .25);
+  color: var(--o-tinta);
+  font-family: var(--o-titulo);
+  font-size: clamp(.9rem, 1.6vw, 1.25rem);
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform .15s, box-shadow .15s;
+}
+
+.osu-launch img {
+  width: 1.7em;
+  height: 1.7em;
+  object-fit: contain;
+  animation: osu-giro 6s linear infinite;
+}
+
+.osu-launch small {
+  padding: .25em .6em;
+  border: 2px solid var(--o-tinta);
+  border-radius: 999px;
+  background: #fff;
+  font-size: .65em;
+  text-transform: uppercase;
+}
+
+.osu-launch:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 9px 0 rgba(43, 26, 26, .55), 0 18px 34px rgba(0, 0, 0, .3);
+}
+
+.osu-launch:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.osu-launch:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+@keyframes osu-giro {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- La nota musical como botón ---------- */
+
+.osu-nota-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto; /* las capas .l-sm no reciben clics: el botón sí */
+  transition: transform .25s cubic-bezier(.34, 1.56, .64, 1), filter .25s;
+}
+
+.osu-nota-btn img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.osu-nota-btn:hover,
+.osu-nota-btn:focus-visible {
+  transform: scale(1.12) rotate(-5deg);
+  filter: drop-shadow(0 0 14px rgba(255, 210, 63, .9));
+}
+
+.osu-nota-btn:active {
+  transform: scale(.94);
+}
+
+.osu-nota-btn:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+
+.osu-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  padding: .25em .75em;
+  border: 3px solid var(--o-tinta);
+  border-radius: 10px;
+  background: #f8e266  ;
+  box-shadow: 2px 3px 0 var(--o-tinta);
+  color: var(--o-tinta);
+ font-family: "Titan";
+  font-size: clamp(.7rem, 1.4vw, 1rem);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: osu-hint 1.6s ease-in-out infinite;
+}
+
+@keyframes osu-hint {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -7px); }
+}
+
+/* ---------- Pantalla completa ---------- */
+
+.osu {
+  position: fixed;
+  inset: 0;
+  z-index: 10000; /* por debajo de la estrella del cursor (10001) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .12) 2px, transparent 2.5px) 0 0 / 22px 22px,
+    linear-gradient(160deg, #0a3fd6, #1273ea 60%, #14a0ec);
+  color: #fff;
+  font-family: var(--o-texto);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.osu *,
+.osu *::before,
+.osu *::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.osu .is-oculto {
+  visibility: hidden;
+}
+
+/* Aros que laten con la canción */
+
+.osu__aros {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.osu-pulso {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46vmin;
+  aspect-ratio: 1;
+  border: 5px solid rgba(255, 255, 255, .55);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(122, 11, 11, 0.35);
+  will-change: transform, opacity;
+}
+
+/* Decoración */
+
+.osu-deco {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.osu-deco--estrella {
+  width: clamp(40px, 7vw, 90px);
+  height: auto;
+  opacity: .9;
+}
+
+.osu-deco--a { top: 12%; left: 6%; }
+.osu-deco--b { bottom: 10%; right: 6%; width: clamp(50px, 9vw, 120px); }
+
+.osu-deco--disco {
+  width: clamp(60px, 10vw, 130px);
+  aspect-ratio: 1;
+  border: 5px solid rgba(255, 255, 255, .5);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, .3) 0 12%, transparent 13%);
+}
+
+.osu-deco--c { bottom: 14%; left: 8%; }
+.osu-deco--d { top: 16%; right: 9%; border-color: rgba(255, 210, 63, .7); }
+
+/* ---------- HUD ---------- */
+
+.osu__hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  pointer-events: none;
+}
+
+.osu-cerrar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 3px solid var(--o-tinta);
+  border-radius: 50%;
+  background: var(--o-oro);
+  box-shadow: 0 3px 0 var(--o-tinta);
+  color: var(--o-tinta);
+  font-family: var(--o-titulo);
+  font-size: 1.1rem;
+  pointer-events: auto;
+  transition: transform .15s, box-shadow .15s;
+}
+
+.osu-cerrar:hover { transform: translateY(-1px); }
+.osu-cerrar:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--o-tinta); }
+.osu-cerrar:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+.osu__barras {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.osu__vida {
+  height: 16px;
+  overflow: hidden;
+  border: 3px solid var(--o-tinta);
+  border-radius: 999px;
+  background: var(--o-fondo);
+  box-shadow: 0 3px 0 rgba(43, 26, 26, .55);
+}
+
+.osu__vida-fill {
+  width: 100%;
+  height: 100%;
+  transform: scaleX(.7);
+  transform-origin: left center;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .35) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, #ffe27a, var(--o-oro));
+}
+
+.osu__prog {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(7, 34, 110, .55);
+}
+
+.osu__prog-fill {
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--o-cian);
+}
+
+.osu__stats {
+  flex: none;
+  text-align: right;
+}
+
+.osu__score,
+.osu__combo,
+.osu-juicio,
+.osu__cuenta,
+.osu-rank {
+  font-family: var(--o-titulo);
+  -webkit-text-stroke: 7px #fff;
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--o-oscuro);
+}
+
+.osu__score {
+  color: var(--o-cian);
+  font-size: clamp(1.5rem, 4vw, 2.6rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.osu__acc {
+  margin-top: 4px;
+  color: #fff;
+  font-family: var(--o-titulo);
+  font-size: clamp(.85rem, 1.8vw, 1.2rem);
+  text-shadow: 0 2px 0 var(--o-tinta);
+}
+
+.osu__combo {
+  position: absolute;
+  left: 22px;
+  bottom: 14px;
+  z-index: 5;
+  color: var(--o-cian);
+  font-size: clamp(2.2rem, 7vw, 4.4rem);
+  line-height: 1;
+  transform-origin: left bottom;
+  pointer-events: none;
+}
+
+.osu__cuenta {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  width: max-content;
+  height: fit-content;
+  margin: auto;
+  color: var(--o-oro);
+  font-size: clamp(4rem, 17vw, 9rem);
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Campo de juego (4:3, como osu!) ---------- */
+
+.osu__zona {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 70px 12px 18px;
+}
+
+.osu__campo {
+  --nota: 64px;
+  position: relative;
+  width: min(94vw, calc((100svh - 110px) * 1.3333));
+  aspect-ratio: 4 / 3;
+  border: 4px solid #fff;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .13) 1.2px, transparent 1.8px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(7, 34, 110, .72), rgba(7, 34, 110, .5));
+  box-shadow: 6px 7px 0 var(--o-tinta), 0 20px 44px rgba(0, 0, 0, .35);
+  touch-action: none;
+  transition: filter .5s;
+}
+
+.osu__campo.is-atenuado {
+  filter: blur(3px) brightness(.85);
+  pointer-events: none;
+}
+
+.osu__capa {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------- Notas ---------- */
+
+.osu-nota {
+  position: absolute;
+  width: var(--nota);
+  height: var(--nota);
+  margin: calc(var(--nota) / -2) 0 0 calc(var(--nota) / -2);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.osu-nota__cuerpo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .6), transparent 46%),
+    var(--c, var(--o-cian));
+  box-shadow: 3px 4px 0 var(--o-oscuro), 0 6px 14px rgba(0, 0, 0, .25);
+  color: #fff;
+  font-family: var(--o-titulo);
+  font-size: calc(var(--nota) * .42);
+  line-height: 1;
+  text-shadow: 0 2px 0 var(--o-oscuro), 0 0 6px rgba(11, 42, 122, .5);
+  will-change: transform, opacity;
+}
+
+.osu-nota__aro {
+  position: absolute;
+  inset: 0;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--o-oscuro), inset 0 0 0 2px var(--o-oscuro);
+  transform: scale(3.2);
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* ---------- Juicio y chispas ---------- */
+
+.osu-juicio {
+  position: absolute;
+  z-index: 200000;
+  font-size: calc(var(--nota) * .55);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-text-stroke: 6px var(--o-oscuro);
+  text-shadow: none;
+}
+
+.osu-juicio small {
+  display: block;
+  margin-top: 2px;
+  font-size: .38em;
+  -webkit-text-stroke: 4px var(--o-oscuro);
+}
+
+.osu-chispa {
+  position: absolute;
+  height: auto;
+  z-index: 200001;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.osu-chispa--fija {
+  position: fixed;
+}
+
+/* ---------- Tarjetas (menú y resultados) ---------- */
+
+.osu-card {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  height: fit-content;
+  margin: auto;
+  width: min(520px, 92vw);
+  max-height: 92svh;
+  overflow: auto;
+  padding: 1.3rem 1.6rem 1.5rem;
+  border: 3px solid var(--o-tinta);
+  background: var(--o-fondo);
+  box-shadow: 0 6px 0 rgba(43, 26, 26, .55), 0 14px 30px rgba(0, 0, 0, .35);
+  text-align: center;
+}
+
+.osu-card__tag {
+  color: var(--o-oro);
+  font-family: var(--o-titulo);
+  font-size: clamp(.8rem, 2vw, 1.1rem);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 var(--o-tinta);
+}
+
+.osu-title {
+  display: flex;
+  justify-content: center;
+  gap: .04em;
+  margin: .1em 0 .2em;
+  font-family: var(--o-titulo);
+  font-size: clamp(4.5rem, 20vw, 8rem);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.osu-letra {
+  display: inline-block;
+  color: var(--o-cian);
+  -webkit-text-stroke: 10px #fff;
+  paint-order: stroke fill;
+  text-shadow: 5px 5px 0 var(--o-oscuro);
+}
+
+.osu-letra:nth-child(2) { color: var(--o-oro); }
+
+.osu-reglas {
+  display: grid;
+  gap: .55rem;
+  margin: .4rem auto 1.1rem;
+  max-width: 40ch;
+  font-size: clamp(.95rem, 2.2vw, 1.1rem);
+  line-height: 1.35;
+  list-style: none;
+  text-align: left;
+}
+
+.osu-reglas li {
+  padding-left: 1.4em;
+  background: radial-gradient(circle, var(--o-oro) 0 45%, transparent 50%) 0 .35em / 1em 1em no-repeat;
+}
+
+.osu-oro { color: var(--o-oro); }
+.osu-cian { color: var(--o-cian); }
+.osu-rojo { color: #ff7a7a; }
+
+.osu-botones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .8rem;
+}
+
+.osu-btn {
+  padding: .5em 1.3em;
+  border: 3px solid var(--o-tinta);
+  border-radius: 12px;
+  background: var(--o-oro);
+  box-shadow: 0 4px 0 var(--o-tinta);
+  color: var(--o-tinta);
+  font-family: var(--o-titulo);
+  font-size: clamp(1rem, 2.6vw, 1.35rem);
+  text-transform: uppercase;
+  transition: transform .15s, box-shadow .15s;
+}
+
+.osu-btn--sec {
+  background: #fff;
+}
+
+.osu-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 var(--o-tinta); }
+.osu-btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--o-tinta); }
+.osu-btn:disabled { opacity: .7; }
+.osu-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* Resultados */
+
+.osu-fin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: .9rem 0 1.2rem;
+}
+
+.osu-fin__datos {
+  flex: 1;
+  display: grid;
+  gap: .5rem;
+  text-align: left;
+}
+
+.osu-fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .8rem;
+  padding-bottom: .3rem;
+  border-bottom: 2px dashed rgba(255, 255, 255, .25);
+  font-size: clamp(.9rem, 2.2vw, 1.05rem);
+}
+
+.osu-fila b {
+  font-family: var(--o-titulo);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 0 var(--o-tinta);
+}
+
+.osu-fila--grande b {
+  color: var(--o-cian);
+  font-size: clamp(1.5rem, 4.5vw, 2.1rem);
+}
+
+.osu-fila--juicios {
+  justify-content: space-between;
+  border-bottom: 0;
+  font-family: var(--o-titulo);
+  font-size: clamp(.8rem, 2vw, .95rem);
+  text-shadow: 0 2px 0 var(--o-tinta);
+}
+
+.osu-rank {
+  flex: none;
+  min-width: 1.3em;
+  color: var(--o-oro);
+  font-size: clamp(4.5rem, 16vw, 7rem);
+  line-height: 1;
+  text-align: center;
+  -webkit-text-stroke: 9px #fff;
+  text-shadow: 5px 5px 0 var(--o-oscuro);
+  opacity: 0;
+}
+
+.osu-rank[data-rank="A"] { color: var(--o-cian); }
+.osu-rank[data-rank="B"] { color: #8fe3ff; }
+.osu-rank[data-rank="C"],
+.osu-rank[data-rank="D"] { color: #c9d6ff; }
+.osu-rank[data-rank="F"] { color: #ff7a7a; }
+
+.osu-desbloqueo {
+  margin: -.2rem auto 1.1rem;
+  padding: .4em .9em;
+  width: fit-content;
+  max-width: 100%;
+  border: 3px solid var(--o-tinta);
+  border-radius: 10px;
+  background: var(--o-oro);
+  box-shadow: 3px 4px 0 var(--o-tinta);
+  color: var(--o-tinta);
+  font-family: var(--o-titulo);
+  font-size: clamp(.8rem, 2vw, 1rem);
+  text-transform: uppercase;
+}
+
+/* ---------- Pantallas bajas / celular ---------- */
+
+@media (max-height: 560px) {
+  .osu__zona { padding-top: 58px; padding-bottom: 8px; }
+  .osu__campo { width: min(94vw, calc((100svh - 70px) * 1.3333)); }
+  .osu-title { font-size: clamp(3rem, 14vh, 5rem); }
+}
+
+@media (max-width: 520px) {
+  .osu-fin { flex-direction: column-reverse; }
+  .osu-fin__datos { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .osu-launch img,
+  .osu-hint { animation: none; }
+}

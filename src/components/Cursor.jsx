@@ -830,6 +830,9 @@ export default function Cursor() {
         juego.ganancia = ganancia;
         juego.activo = true;
 
+        // Avisa a Hero: Laferte debe callarse mientras dura el juego
+        window.dispatchEvent(new CustomEvent('musica-juego'));
+
         setCombo(0);
         setModo('juego');
         clearTimeout(temporizadorPiano);
@@ -851,6 +854,9 @@ export default function Cursor() {
     function terminarJuego(texto) {
       if (!juego.activo) return;
       juego.activo = false;
+
+      // Avisa a Hero: el vinilo vuelve a estar libre (Laferte podrá retomarse)
+      window.dispatchEvent(new CustomEvent('musica-juego-fin'));
 
       const ctx = audio.current;
       if (ctx && juego.ganancia && juego.fuente) {
@@ -905,7 +911,7 @@ export default function Cursor() {
       setModo('libre');
       gsap.to(hudRef.current, { opacity: 0, duration: 0.6, delay: 0.8, overwrite: 'auto' });
 
-      // Avisa al resto de la página (el disco empieza a girar, etc.)
+      // Avisa al resto de la página: Laferte se detiene y el vinilo controla Danse
       window.dispatchEvent(
         new CustomEvent('musica-fondo', { detail: { sonando: true } })
       );
@@ -973,8 +979,9 @@ export default function Cursor() {
 
     // ---------- Entradas ----------
     function tocarNota(e) {
-      // Los clics sobre el piano los maneja el piano
-      if (e?.target?.closest?.('[data-piano]')) return;
+      // Los clics sobre el piano y sobre el vinilo / reproductor no hacen sonar Danse:
+      // el vinilo controla Laferte y la música de fondo por su cuenta.
+      if (e?.target?.closest?.('[data-piano], [data-no-sonar]')) return;
 
       animarEstrella();
 

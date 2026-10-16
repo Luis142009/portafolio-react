@@ -2,6 +2,24 @@
    PORTAFOLIO 2026 · LUIS MIGUEL MORENO SANTOS
    ========================================================= */
 
+@font-face {
+  font-family: "Titan";
+  src: url("../assets/fonts/titan.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Smile";
+  src: url("../assets/fonts/smile.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+
 :root {
   --blue-1: #0a3fd6;
   --blue-2: #1273ea;
@@ -148,6 +166,7 @@ button {
 .bar__name {
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family:  'Smile' ;
   white-space: nowrap;
   text-shadow: 0 2px 0 var(--ink), 0 0 6px rgba(0,0,0,.35);
 }
@@ -164,6 +183,17 @@ button {
    ========================================================= */
 
 .hero {
+  /* ---- ESCALA RESPONSIVE (la usan el Hero y Sobremi.css) ----
+     --fw         = ancho real de cada escena (marco)
+     --scene-unit = hueco entre escenas (en escritorio = 1 pantalla,
+                    en celular = proporcional al ancho: sin espacio azul)
+     --hdw        = ancho del marco con el que calibraste el Hero
+     --hs         = "1px de diseño" del Hero */
+  --fw: min(100vw, 200svh);
+  --scene-unit: 100svh;
+  --hdw: 1818;
+  --hs: calc(var(--fw) / var(--hdw));
+
   position: relative;
   width: 100%;
   height: 300svh;
@@ -222,14 +252,15 @@ button {
   object-position: center;
 }
 
-/* Posiciones de las tres secciones */
+/* Posiciones de las tres secciones
+   (escritorio: 0 / 200svh / 400svh, igual que antes) */
 
 .frame {
   position: absolute;
   top: 0;
   bottom: auto;
   left: 50%;
-  width: min(100vw, 200svh);
+  width: var(--fw);
   height: 100svh;
   transform: translateX(-50%);
   transform-style: preserve-3d;
@@ -241,25 +272,15 @@ button {
 }
 
 .frame--about {
-  top: 200svh;
-  width: min(100vw, 200svh);
-  height: 100svh;
+  top: calc(100svh + var(--scene-unit));
   margin-top: 0;
   background: transparent;
 }
 
 .frame--projects {
-  top: 400svh;
-  width: min(100vw, 200svh);
-  height: 100svh;
+  top: calc(200svh + 2 * var(--scene-unit));
   margin-top: 0;
   background: transparent;
-}
-
-@media (max-aspect-ratio: 9/5) {
-  .frame {
-    width: min(100vw, 50svh);
-  }
 }
 
 /* Capas */
@@ -321,8 +342,8 @@ button {
 
 .l-star--b {
   top: 102%;
-  left: 43%;
-  width: 7%;
+  left: 45%;
+  width: 8%;
 }
 
 /* Vinilo */
@@ -384,11 +405,12 @@ button {
 
 .role {
   position: absolute;
-  left: 300px;
-  top: 80px;
+  left: calc(180 * var(--hs));
+  top: calc(90 * var(--hs));
   font-family: var(--font-title);
-  font-size: max(39px, calc(var(--u) * 1.1));
+  font-size: max(12px, calc(45 * var(--hs))); /* 39px a ancho de diseño */
   text-shadow: 0 2px 0 var(--ink);
+  font-family:  'Smile' ;
 }
 
 .player {
@@ -522,6 +544,7 @@ button {
 
 .speech p {
   margin: 0;
+  font-family: "Smile" ;
   font-size: 4.5cqw;
 }
 
@@ -671,10 +694,19 @@ button {
 }
 
 /* =========================================================
-   RESPONSIVE
+   RESPONSIVE (celular / pantallas verticales)
    ========================================================= */
 
 @media (max-aspect-ratio: 6/5) {
+  /* Escenas más angostas y SIN el hueco de una pantalla entre ellas:
+     el hueco pasa a ser proporcional al ancho (ya no queda espacio azul).
+     El largo del scroll se ajusta a lo que realmente baja la cámara. */
+  .hero {
+    --fw: min(100vw, 50svh);
+    --scene-unit: calc(var(--fw) / 2);
+    height: calc(100svh + (2 + var(--about-extra, 0.6)) * var(--scene-unit));
+  }
+
   .l-paper {
     top: .5%;
     left: -40%;
@@ -727,6 +759,7 @@ button {
   }
 
   .role {
+    position: static;
     margin: .6em 0 0 1em;
     font-size: max(10px, calc(var(--u) * 2.8));
   }
@@ -792,4 +825,3 @@ button {
     animation: none;
   }
 }
-

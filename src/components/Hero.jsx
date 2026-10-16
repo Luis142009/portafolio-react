@@ -10,34 +10,25 @@ import disco from '../assets/disco.png';
 import estrella from '../assets/estrella.png';
 import personaje from '../assets/personaje.png';
 import titulo from '../assets/titulo.png';
+import laferte from '../assets/laferte.mp3';
+
 import '../stylesheets/Sobremi.css';
+
 gsap.registerPlugin(ScrollTrigger);
 
 const PERSP = 1200;
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-// Cuánto crece la sección 2 hacia abajo, en "pantallas".
-// 0 = como antes · 0.5 = media pantalla más · 1 = una pantalla más
-// Controla a la vez: el alto del hero, el alto de la sección 2 (CSS) y
-// cuánto baja la cámara.
 const ABOUT_EXTRA = 0.6;
 
-/* ---------------------------------------------------------
-   EFECTO PAPEL ARRUGADO (transición Inicio -> Sobre mí)
-   Los valores están en "alturas de pantalla" de scroll desde
-   el inicio del hero. Ajústalos probando:
-   - CRUMPLE_START: dónde empieza a subir el papel rasgado
-   - CRUMPLE_END:   dónde termina de abrirse y desaparece
-   --------------------------------------------------------- */
 const CRUMPLE_START = 0.55;
 const CRUMPLE_END = 1.55;
-// Pon true para ver marcadores de scroll (start/end) en pantalla
 const CRUMPLE_DEBUG = false;
 
-// Borde rasgado: puntos fijos (no aleatorios) para que no cambie en cada render
 const TEAR_N = 30;
 const TEAR_J = 16;
+
 const TEAR_JAG = Array.from({ length: TEAR_N + 1 }, (_, i) => {
   const r = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1);
   return 0.6 * r + 0.4 * (i % 2);
@@ -59,9 +50,13 @@ export default function Hero({ revealed }) {
   const cameraTrack = useRef(null);
   const spin = useRef(null);
   const speechIn = useRef(null);
+
   const isPlaying = useRef(false);
   const startedRef = useRef(false);
-  const musicaFondo = useRef(false);
+  const musicaFondo = useRef(false); // Danse desbloqueada y sonando de fondo
+  const juegoActivo = useRef(false); // el minijuego está en curso
+  const laferteAudio = useRef(null);
+  const laferteDesbloqueada = useRef(false); // ya salió el aviso / entrada en la lista
 
   const crumpleRef = useRef(null);
   const sheetRef = useRef(null);
@@ -69,6 +64,158 @@ export default function Hero({ revealed }) {
 
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
+
+  // ---------------------------------------------------------
+  // Utilidades de audio / vinilo (solo usan refs y setters estables)
+  // ---------------------------------------------------------
+  const detenerLaferte = () => {
+    const audio = laferteAudio.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+  };
+
+  // Desbloquea a Laferte en la lista (Canciones ignora los repetidos)
+  const desbloquearLaferte = () => {
+    laferteDesbloqueada.current = true;
+    window.dispatchEvent(
+      new CustomEvent('cancion-desbloqueada', { detail: { id: 'laferte' } })
+    );
+  };
+
+  const encenderDisco = () => {
+    startedRef.current = true;
+    setStarted(true);
+    isPlaying.current = true;
+    setPlaying(true);
+
+    if (spin.current) {
+      spin.current.timeScale(0).play();
+
+      gsap.to(spin.current, {
+        timeScale: 1,
+        duration: 0.8,
+        ease: 'power2.out',
+      });
+    }
+
+    if (speechIn.current) {
+      gsap.fromTo(
+        speechIn.current,
+        {
+          autoAlpha: 0,
+          scale: 0.2,
+          rotation: -6,
+          transformOrigin: '0% 60%',
+        },
+        {
+          autoAlpha: 1,
+          scale: 1,
+          rotation: 0,
+          duration: 0.8,
+          ease: 'back.out(1.6)',
+        }
+      );
+    }
+  };
+
+  // ---------------------------------------------------------
+  // AUDIO: Laferte antes de desbloquear Danse Macabre
+  // Un solo efecto maneja todos los eventos de música.
+  // ---------------------------------------------------------
+  useEffect(() => {
+    const audio = new Audio(laferte);
+    audio.loop = true;
+    audio.volume = 0.8;
+    laferteAudio.current = audio;
+
+    // Empieza el minijuego: Laferte se calla y suena Danse.
+    const onMusicaJuego = () => {
+      juegoActivo.current = true;
+      detenerLaferte();
+
+      isPlaying.current = false;
+      setPlaying(false);
+
+      if (spin.current) {
+        gsap.to(spin.current, {
+          timeScale: 0,
+          duration: 0.25,
+          ease: 'power2.out',
+        });
+      }
+    };
+
+    // El minijuego terminó sin ganar: el vinilo vuelve a estar libre.
+    const onJuegoFin = () => {
+      juegoActivo.current = false;
+    };
+
+    // El usuario toca el piano o hace clic fuera del vinilo:
+    // Laferte se pausa (sin reiniciar) y el vinilo deja de girar.
+    const onMusicaLibre = () => {
+      if (musicaFondo.current || juegoActivo.current) return;
+
+      const a = laferteAudio.current;
+      if (!a || a.paused) return;
+
+      a.pause();
+      isPlaying.current = false;
+      setPlaying(false);
+
+      if (spin.current) {
+        gsap.to(spin.current, {
+          timeScale: 0,
+          duration: 0.4,
+          ease: 'power2.out',
+        });
+      }
+    };
+
+    // Danse desbloqueada: pasa a ser la música de fondo y Laferte no vuelve a sonar.
+    const onMusicaFondo = () => {
+      musicaFondo.current = true;
+      juegoActivo.current = false;
+      detenerLaferte();
+
+      window.dispatchEvent(
+        new CustomEvent('cancion-desbloqueada', { detail: { id: 'danse' } })
+      );
+
+      if (!startedRef.current) {
+        encenderDisco();
+      } else if (!isPlaying.current) {
+        isPlaying.current = true;
+        setPlaying(true);
+
+        if (spin.current) {
+          spin.current.play();
+
+          gsap.to(spin.current, {
+            timeScale: 1,
+            duration: 0.8,
+            ease: 'power2.out',
+          });
+        }
+      }
+    };
+
+    window.addEventListener('musica-juego', onMusicaJuego);
+    window.addEventListener('musica-juego-fin', onJuegoFin);
+    window.addEventListener('musica-libre', onMusicaLibre);
+    window.addEventListener('musica-fondo', onMusicaFondo);
+
+    return () => {
+      window.removeEventListener('musica-juego', onMusicaJuego);
+      window.removeEventListener('musica-juego-fin', onJuegoFin);
+      window.removeEventListener('musica-libre', onMusicaLibre);
+      window.removeEventListener('musica-fondo', onMusicaFondo);
+
+      audio.pause();
+      audio.currentTime = 0;
+      laferteAudio.current = null;
+    };
+  }, []);
 
   // Preparar la profundidad de las capas 3D
   useLayoutEffect(() => {
@@ -234,7 +381,7 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, [revealed]);
 
-  // La cámara baja mientras el escenario conserva su propia transformación 3D
+  // La cámara baja mientras el escenario conserva su transformación 3D
   useLayoutEffect(() => {
     if (!revealed || reduce) return;
 
@@ -257,8 +404,7 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, [revealed]);
 
-  // Transición de papel arrugado: el papel rasgado sube, se arruga hasta
-  // volverse una bolita, se abre de nuevo y se rompe para revelar "Sobre mí"
+  // Transición de papel arrugado entre Inicio y Sobre mí
   useLayoutEffect(() => {
     if (!revealed || reduce) return;
 
@@ -269,7 +415,6 @@ export default function Hero({ revealed }) {
 
       if (!wrap || !sheet || !disp) return;
 
-      // Valores que se animan con onUpdate (clip-path y máscara)
       const p = { tear: 0, hole: -10 };
 
       const apply = () => {
@@ -283,12 +428,15 @@ export default function Hero({ revealed }) {
         borderRadius: '0%',
         transformOrigin: '50% 50%',
       });
+
       gsap.set('.crumple__creases', { autoAlpha: 0 });
       disp.setAttribute('scale', '0');
+
       gsap.set(
         '.scene-content--about span, .scene-content--about h2, .scene-content--about p',
         { autoAlpha: 0, y: 60 }
       );
+
       apply();
 
       const tl = gsap.timeline({
@@ -307,11 +455,18 @@ export default function Hero({ revealed }) {
         onUpdate: apply,
       });
 
-      // 1. El papel rasgado sube desde abajo
-      tl.fromTo(p, { tear: 0 }, { tear: 1, duration: 0.28, ease: 'power1.in' }, 0)
-        .fromTo(disp, { attr: { scale: 0 } }, { attr: { scale: 30 }, duration: 0.2 }, 0)
-
-        // 2. Se arruga hasta hacerse una bolita
+      tl.fromTo(
+        p,
+        { tear: 0 },
+        { tear: 1, duration: 0.28, ease: 'power1.in' },
+        0
+      )
+        .fromTo(
+          disp,
+          { attr: { scale: 0 } },
+          { attr: { scale: 30 }, duration: 0.2 },
+          0
+        )
         .fromTo(
           disp,
           { attr: { scale: 30 } },
@@ -336,16 +491,12 @@ export default function Hero({ revealed }) {
           { autoAlpha: 1, duration: 0.25 },
           0.2
         )
-
-        // 3. Pequeño temblor mientras está hecha bolita
         .fromTo(
           sheet,
           { rotation: -14 },
           { rotation: -9, duration: 0.1, ease: 'sine.inOut' },
           0.5
         )
-
-        // 4. Se vuelve a abrir
         .fromTo(
           sheet,
           { scale: 0.3, rotation: -9, borderRadius: '48%' },
@@ -370,11 +521,12 @@ export default function Hero({ revealed }) {
           { autoAlpha: 0.35, duration: 0.35 },
           0.6
         )
-
-        // 5. Se rompe desde el centro y deja ver la escena 2
-        .fromTo(p, { hole: -10 }, { hole: 130, duration: 0.33, ease: 'power2.in' }, 0.65)
-
-        // 6. El contenido de "Sobre mí" entra al final
+        .fromTo(
+          p,
+          { hole: -10 },
+          { hole: 130, duration: 0.33, ease: 'power2.in' },
+          0.65
+        )
         .fromTo(
           '.scene-content--about span, .scene-content--about h2, .scene-content--about p',
           { autoAlpha: 0, y: 60 },
@@ -468,6 +620,7 @@ export default function Hero({ revealed }) {
           'touchmove',
           (e) => {
             const touch = e.touches[0];
+            if (!touch) return;
 
             tilt(
               (touch.clientX / window.innerWidth) * 2 - 1,
@@ -485,44 +638,36 @@ export default function Hero({ revealed }) {
     };
   }, []);
 
-  // Activar el vinilo y mostrar el globo
-  const encenderDisco = () => {
-    startedRef.current = true;
-    setStarted(true);
-    isPlaying.current = true;
-    setPlaying(true);
-
-    if (spin.current) {
-      spin.current.timeScale(0).play();
-
-      gsap.to(spin.current, {
-        timeScale: 1,
-        duration: 0.8,
-        ease: 'power2.out',
-      });
+  const reproducirLaferte = async () => {
+    try {
+      await laferteAudio.current?.play();
+    } catch (error) {
+      console.error('No se pudo reproducir Laferte:', error);
     }
-
-    gsap.fromTo(
-      speechIn.current,
-      {
-        autoAlpha: 0,
-        scale: 0.2,
-        rotation: -6,
-        transformOrigin: '0% 60%',
-      },
-      {
-        autoAlpha: 1,
-        scale: 1,
-        rotation: 0,
-        duration: 0.8,
-        ease: 'back.out(1.6)',
-      }
-    );
   };
 
-  const toggleVinyl = () => {
+  // El vinilo controla la canción activa
+  const toggleVinyl = async () => {
+    // Primer clic: gira el disco y suena Laferte (si el juego no ha empezado
+    // ni se ha desbloqueado Danse Macabre).
     if (!startedRef.current) {
       encenderDisco();
+
+      if (!juegoActivo.current && !musicaFondo.current) {
+        desbloquearLaferte();
+        await reproducirLaferte();
+      }
+
+      return;
+    }
+
+    // Mientras el minijuego está activo, el vinilo no inicia otra canción.
+    if (juegoActivo.current && !musicaFondo.current) return;
+
+    // Danse ya es la música de fondo y Laferte aún no estaba desbloqueada:
+    // este clic solo la desbloquea (no suena, no pausa Danse).
+    if (musicaFondo.current && !laferteDesbloqueada.current) {
+      desbloquearLaferte();
       return;
     }
 
@@ -542,57 +687,38 @@ export default function Hero({ revealed }) {
     }
 
     if (musicaFondo.current) {
+      // Danse ya es la música de fondo: el vinilo la pausa / reanuda.
       window.dispatchEvent(
         new CustomEvent('musica-control', {
           detail: { sonando: next },
         })
       );
+    } else if (laferteAudio.current) {
+      // Antes del desbloqueo, el vinilo controla Laferte.
+      if (next) {
+        desbloquearLaferte();
+        await reproducirLaferte();
+      } else {
+        laferteAudio.current.pause();
+      }
     }
   };
 
-  // Sincronizar con la música activada por el cursor
-  useEffect(() => {
-    const onMusicaFondo = () => {
-      musicaFondo.current = true;
-
-      if (!startedRef.current) {
-        encenderDisco();
-      } else if (!isPlaying.current) {
-        isPlaying.current = true;
-        setPlaying(true);
-
-        if (spin.current) {
-          spin.current.play();
-
-          gsap.to(spin.current, {
-            timeScale: 1,
-            duration: 0.8,
-            ease: 'power2.out',
-          });
-        }
-      }
-    };
-
-    window.addEventListener('musica-fondo', onMusicaFondo);
-
-    return () => {
-      window.removeEventListener('musica-fondo', onMusicaFondo);
-    };
-  }, []);
-
   const vinylEnter = () => {
-    if (spin.current && isPlaying.current) {
+    if (spin.current && isPlaying.current && !reduce) {
       gsap.to(spin.current, { timeScale: 3, duration: 0.5 });
     }
   };
 
   const vinylLeave = () => {
-    if (spin.current && isPlaying.current) {
+    if (spin.current && isPlaying.current && !reduce) {
       gsap.to(spin.current, { timeScale: 1, duration: 0.8 });
     }
   };
 
   const poke = () => {
+    if (reduce) return;
+
     gsap.fromTo(
       '.l-char .in',
       { scale: 1 },
@@ -623,7 +749,10 @@ export default function Hero({ revealed }) {
     >
       <div className="stage-wrap">
         <div className="stage" ref={stage}>
-          <div className="camera-track" ref={cameraTrack}>
+          <div
+            className="camera-track"
+            ref={cameraTrack}
+          >
             <div
               className="layer l-bg"
               data-z="-320"
@@ -648,7 +777,9 @@ export default function Hero({ revealed }) {
                   <button
                     className={'vinyl' + (started ? '' : ' is-idle')}
                     type="button"
+                    data-no-sonar="true"
                     aria-label={playing ? 'Pausar el disco' : 'Reproducir el disco'}
+                    aria-pressed={playing}
                     onClick={toggleVinyl}
                     onPointerEnter={vinylEnter}
                     onPointerLeave={vinylLeave}
@@ -706,7 +837,12 @@ export default function Hero({ revealed }) {
                 </div>
               </div>
 
-              <div className="layer l-info" data-z="80" data-depth="18">
+              <div
+                className="layer l-info"
+                data-z="80"
+                data-depth="18"
+                data-no-sonar="true"
+              >
                 <div className="in">
                   <Player
                     name="Luis Miguel Moreno Santos"
@@ -718,7 +854,7 @@ export default function Hero({ revealed }) {
               </div>
             </div>
 
-            {/* ESCENA 2: SOBRE MÍ (ver components/SobreMi.jsx y stylesheets/Sobremi.css) */}
+            {/* ESCENA 2: SOBRE MÍ */}
             <div className="frame frame--about">
               <SobreMi />
             </div>
@@ -738,7 +874,6 @@ export default function Hero({ revealed }) {
         </div>
       </div>
 
-     
       <button
         className="hero-scroll"
         type="button"
