@@ -1,0 +1,553 @@
+/* =========================================================
+   PIANO 3D · HUD · CARRILES · NOTAS LARGAS · CARTEL DE HITOS
+   (Cursor.jsx)
+   Piano real de 10 teclas blancas + 7 negras, ahora en una
+   escena 3D: perspectiva, plano inclinado (GSAP), teclas con
+   grosor, negras elevadas, reflejo que sigue al mouse, ondas
+   de luz y carril tipo "autopista".
+   Guárdalo en src/stylesheets/Cursor.css
+   ========================================================= */
+
+@font-face {
+  font-family: "Titan";
+  src: url("../assets/titan.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --p-azul: #1b6fe0;
+  --p-oscuro: #0b2a7a;
+  --p-fondo: #07226e;
+  --p-cian: #2fd4ff;
+  --p-oro: #ffd23f;
+  --p-tinta: #2b1a1a;
+  --p-marfil: #ffffff;
+  --p-titulo: "Titan", var(--font-title, "Arial Black"), sans-serif;
+
+  /* Medidas que alinean los carriles con las teclas:
+     carril y marco del teclado deben tener el mismo ancho interior */
+  --p-margen: 12px;
+  --p-borde: 3px;
+  --p-pad: 6px;
+  --p-hueco: 2px;
+}
+
+/* Texto "cómic": trazo + sombra dura (igual que osu__score) */
+.piano-hud__combo,
+.piano-hito__num,
+.piano-juicio {
+  font-family: var(--p-titulo);
+  paint-order: stroke fill;
+}
+
+/* ---------- HUD: combo y vida ---------- */
+
+.piano-hud {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 9998;
+  min-width: 100px;
+  padding: 8px 14px 10px;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .16) 1.2px, transparent 1.8px) 0 0 / 10px 10px,
+    linear-gradient(160deg, #0a3fd6, #1273ea 60%, #14a0ec);
+  box-shadow: 4px 5px 0 var(--p-tinta), 0 14px 26px rgba(0, 0, 0, .25);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0; /* lo anima gsap */
+}
+
+.piano-hud__combo {
+  color: var(--p-cian);
+  font-size: 28px;
+  line-height: 1;
+  -webkit-text-stroke: 6px #fff;
+  text-shadow: 3px 3px 0 var(--p-oscuro);
+}
+
+.piano-hud__vida {
+  height: 12px;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 2px solid var(--p-tinta);
+  border-radius: 999px;
+  background: var(--p-fondo);
+  box-shadow: 0 2px 0 rgba(43, 26, 26, .55);
+}
+
+.piano-hud__vida-fill {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .35) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, #ffe27a, var(--p-oro));
+  transform-origin: left center;
+  transform: scaleX(0); /* lo mueve el ticker */
+}
+
+/* ---------- Contenedor del piano: aquí vive la perspectiva 3D ---------- */
+
+.piano {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 9997;
+  width: min(760px, 96vw);
+  opacity: 0;           /* lo anima gsap (autoAlpha) */
+  visibility: hidden;
+  perspective: 1000px;
+  perspective-origin: 50% 65%;
+}
+
+/* Cámara: respira, se sacude y recibe impactos (gsap: x, y, z, rotationZ) */
+.piano-camara {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+/* Escena: el plano que se inclina hacia atrás (gsap: rotationX, rotationY, z) */
+.piano-escena {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+/* Sombra proyectada en el "suelo" debajo del teclado */
+.piano-sombra {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -12px;
+  height: 46px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, .6), transparent 70%);
+  filter: blur(9px);
+  transform: translateZ(-34px);
+  pointer-events: none;
+}
+
+/* Botón ¡Jugar! (igual que .osu-btn) */
+.piano-jugar {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: .45em 1.2em;
+  border: 3px solid var(--p-tinta);
+  border-radius: 12px;
+  background: var(--p-oro);
+  box-shadow: 0 4px 0 var(--p-tinta);
+  color: var(--p-tinta);
+  font-family: var(--p-titulo);
+  font-size: 14px;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: inherit;
+  transition: box-shadow .15s, translate .15s;
+}
+
+.piano-jugar:hover {
+  translate: 0 -2px;
+  box-shadow: 0 6px 0 var(--p-tinta);
+}
+
+.piano-jugar:active {
+  translate: 0 3px;
+  box-shadow: 0 1px 0 var(--p-tinta);
+}
+
+/* ---------- Carriles por donde bajan las notas (la "autopista") ---------- */
+
+.piano-carril {
+  position: relative;
+  display: flex;
+  gap: var(--p-hueco);
+  height: 0; /* gsap lo abre / cierra */
+  padding: 0 calc(var(--p-margen) + var(--p-borde) + var(--p-pad));
+  /* las notas nacen difuminadas en la distancia */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
+}
+
+.piano-columna {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-radius: 10px 10px 0 0;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .14) 1.2px, transparent 1.8px) 0 0 / 12px 12px,
+    linear-gradient(to top, rgba(18, 115, 234, .6), rgba(18, 115, 234, .05));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+  /* recorta arriba (donde nacen las notas) pero deja ver la nota al pasar la línea */
+  clip-path: inset(0 -4px -60px -4px);
+}
+
+/* Línea de golpeo */
+.piano-columna::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  max-height: 100%;
+  background: rgba(255, 255, 255, .8);
+  box-shadow: 0 0 10px 2px rgba(255, 255, 255, .55);
+}
+
+/* Haz de luz que sube por el carril al acertar */
+.piano-haz {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 75%;
+  background: linear-gradient(to top, var(--c, var(--p-cian)), transparent);
+  mix-blend-mode: screen;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+
+/* ---------- Notas que bajan ---------- */
+
+.piano-nota {
+  --nota: 30px; /* el JS lo sincroniza con TAM_NOTA */
+  position: absolute;
+  top: 0;
+  left: 3px;
+  right: 3px;
+  height: var(--nota);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.piano-nota__cuerpo {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 3px solid #fff;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 34% 28%, transparent 46%),
+    var(--c, var(--p-cian));
+  box-shadow: 2px 4px 0 var(--p-oscuro), 0 7px 12px rgba(0, 0, 0, .35);
+  color: #fff;
+  font-family: var(--p-titulo);
+  font-size: calc(var(--nota) * .55);
+  line-height: 1;
+  text-shadow: 0 2px 0 var(--p-oscuro);
+}
+
+/* Nota larga: la cola sube desde la cabeza */
+.piano-nota__cola {
+  position: absolute;
+  left: 25%;
+  width: 49%;
+  bottom: 50%;
+  box-sizing: border-box;
+  border: 3px solid #fff;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .35) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    var(--c, var(--p-cian));
+  box-shadow: 2px 0 0 var(--p-oscuro);
+}
+
+/* Mientras la sostienes */
+.piano-nota__cuerpo.is-sostenida {
+  box-shadow: 0 0 0 3px var(--p-oro), 0 0 18px 4px rgba(63, 146, 255, 0.8);
+}
+
+/* Nota negra (bonus): más oscura, con borde dorado, cae entre dos carriles */
+.piano-nota--negra .piano-nota__cuerpo {
+  border-color: var(--p-oro);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 34% 28%, transparent 46%),
+    linear-gradient(90deg, var(--p-oscuro), #123a9c 50%, var(--p-oscuro));
+  box-shadow: 2px 4px 0 var(--p-tinta), 0 0 14px 2px rgba(255, 210, 63, .6);
+}
+
+/* ---------- Estrella: rejugar la canción completa ---------- */
+
+.piano-estrella {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10002;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .16) 1.2px, transparent 1.8px) 0 0 / 10px 10px,
+    linear-gradient(160deg, #0a3fd6, #1273ea 60%, #14a0ec);
+  
+  opacity: 0; /* lo anima gsap */
+  cursor: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.piano-estrella img {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.piano-estrella:focus-visible {
+  outline: 3px solid var(--p-oro);
+  outline-offset: 4px;
+}
+
+/* ---------- Juicio: ¡Perfecto! / ¡Bien! / Fallo ---------- */
+
+.piano-juicio {
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  font-size: 26px;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-text-stroke: 5px var(--p-oscuro);
+  opacity: 0;
+}
+
+/* ---------- Teclado: marco + teclas (todo en 3D) ---------- */
+
+.piano-teclado {
+  --luz: 50%; /* el JS lo mueve con el mouse: el reflejo recorre las teclas */
+  margin: 0 var(--p-margen);
+  padding: var(--p-pad) var(--p-pad) calc(var(--p-pad) + 4px);
+  border: var(--p-borde) solid var(--p-tinta);
+  border-radius: 0 0 16px 16px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .16) 1.2px, transparent 1.8px) 0 0 / 10px 10px,
+    linear-gradient(160deg, #0a3fd6, #1273ea 60%, #14a0ec);
+  box-shadow:
+    4px 6px 0 var(--p-tinta),
+    0 10px 0 #061a52,
+    0 22px 34px rgba(0, 0, 0, .38);
+  transform-style: preserve-3d;
+}
+
+.piano-teclas {
+  position: relative;
+  display: flex;
+  gap: var(--p-hueco);
+  height: 170px;
+  transform-style: preserve-3d;
+}
+
+/* Cada hueco guarda una tecla blanca y (si toca) la negra de su derecha */
+.piano-slot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  transform-style: preserve-3d;
+}
+
+/* Tecla blanca */
+.piano-tecla {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 8px;
+  overflow: hidden;
+  background-color: var(--p-marfil);
+  background-image: linear-gradient(
+    180deg,
+    rgba(27, 111, 224, .22),
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 236, 170, .25)
+  );
+  border: 2px solid var(--p-tinta);
+  border-radius: 0 0 10px 10px;
+  /* grosor de la tecla: cara frontal apilada + sombra en el suelo */
+  box-shadow:
+    0 5px 0 var(--p-oscuro),
+    0 9px 0 #061a52,
+    0 14px 14px rgba(0, 0, 0, .3);
+  color: var(--p-azul);
+  font-family: var(--p-titulo);
+  font-size: 20px;
+  cursor: inherit;
+  transition: background-color .1s, box-shadow .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Reflejo de luz que se desliza al mover el mouse */
+.piano-tecla::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent calc(var(--luz) - 22%),
+    rgba(255, 255, 255, .75) var(--luz),
+    transparent calc(var(--luz) + 22%)
+  );
+  mix-blend-mode: soft-light;
+  opacity: .85;
+  pointer-events: none;
+}
+
+/* Brillo de borde superior (labio de la tecla) */
+.piano-tecla::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 0;
+  height: 5px;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, rgba(27, 111, 224, .35), transparent);
+  pointer-events: none;
+}
+
+/* Presionada: se ilumina con el color de su carril y la sombra se "hunde"
+   (gsap la inclina en 3D) */
+.piano-tecla.is-down {
+  background-color: #aee9ff;
+  box-shadow:
+    0 1px 0 var(--p-oscuro),
+    0 2px 0 #061a52,
+    0 0 26px -2px var(--c, var(--p-cian)),
+    inset 0 -42px 38px -16px var(--c, var(--p-cian));
+}
+
+.piano-tecla:focus-visible,
+.piano-negra:focus-visible {
+  outline: 3px solid var(--p-cian);
+  outline-offset: 3px;
+}
+
+.piano-tecla__etiqueta {
+  position: relative;
+  pointer-events: none;
+}
+
+/* Tecla negra, montada entre dos blancas y elevada en Z (gsap: z) */
+.piano-negra {
+  position: absolute;
+  top: 0;
+  right: -28%;
+  width: 56%;
+  height: 60%;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 20px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(90deg, var(--p-oscuro), #123a9c 50%, var(--p-oscuro));
+  box-shadow:
+    2px 6px 0 rgba(43, 26, 26, .8),
+    0 16px 16px rgba(0, 0, 0, .5);
+  color: #fff;
+  font-family: var(--p-titulo);
+  font-size: 13px;
+  cursor: inherit;
+  transition: box-shadow .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.piano-negra.is-down {
+  background: linear-gradient(90deg, #123a9c, var(--p-azul) 50%, #123a9c);
+  box-shadow:
+    0 1px 0 rgba(43, 26, 26, .8),
+    0 0 20px 1px var(--p-cian);
+}
+
+/* Bisel cian en la punta */
+.piano-negra__bisel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14%;
+  background: linear-gradient(180deg, var(--p-cian), var(--p-azul));
+  pointer-events: none;
+}
+
+.piano-negra__etiqueta {
+  position: relative;
+  pointer-events: none;
+}
+
+/* Onda de luz que se expande sobre el plano al pulsar una tecla */
+.piano-onda {
+  position: absolute;
+  left: 50%;
+  width: 90%;
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  border: 3px solid var(--c, var(--p-cian));
+  border-radius: 50%;
+  box-shadow: 0 0 14px var(--c, var(--p-cian)), inset 0 0 14px var(--c, var(--p-cian));
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ---------- Cartel de hitos: 15x · 30x ---------- */
+
+.piano-hito {
+  position: fixed;
+  left: 50%;
+  top: 70px;
+  z-index: 10000;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.piano-hito__num {
+  color: var(--p-cian);
+  font-size: clamp(48px, 7vw, 84px);
+  line-height: 1;
+  -webkit-text-stroke: 9px #fff;
+  text-shadow: 4px 4px 0 var(--p-oscuro);
+}
+
+.piano-hito__frase {
+  display: inline-block;
+  margin-top: 6px;
+  padding: .3em .9em;
+  border: 3px solid var(--p-tinta);
+  border-radius: 10px;
+  background: var(--p-oro);
+  box-shadow: 3px 4px 0 var(--p-tinta);
+  color: var(--p-tinta);
+  font-family: var(--p-titulo);
+  font-size: clamp(13px, 1.6vw, 18px);
+}
+
+.piano-hito__frase[hidden] {
+  display: none;
+}
+
+/* ---------- Pantallas bajas ---------- */
+
+@media (max-height: 560px) {
+  .piano-teclas { height: 120px; }
+  .piano-tecla { font-size: 16px; }
+}

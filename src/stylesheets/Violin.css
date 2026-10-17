@@ -1,0 +1,690 @@
+/* =========================================================
+   RETO DEL VIOLÍN  (estilo osu!)
+   Misma estética del portafolio: azules, bordes tinta,
+   sombras duras, puntitos, Titan / Smile.
+   Referencia visual: fondo azul, cuerdas blancas ligeramente
+   inclinadas y un arco cian con borde blanco cruzándolas.
+   Guárdalo en src/stylesheets/Violin.css
+   ========================================================= */
+
+@font-face {
+  font-family: "Titan";
+  src: url("../assets/titan.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.vio,
+.vio-btn {
+  --v-azul: #2563f5;
+  --v-oscuro: #0b2a7a;
+  --v-fondo: #07226e;
+  --v-cian: #2fd4ff;
+  --v-arco: #34b6f1;
+  --v-oro: #ffd23f;
+  --v-tinta: #2b1a1a;
+  --v-titulo: "Titan", var(--font-title, "Arial Black"), sans-serif;
+  --v-texto: "Smile", var(--font-body, system-ui), sans-serif;
+}
+
+/* ---------- Botón sobre la partitura ---------- */
+
+.vio-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto; /* las capas de la escena no reciben clics: el botón sí */
+  transition: transform .25s cubic-bezier(.34, 1.56, .64, 1), filter .25s;
+}
+
+.vio-btn img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.vio-btn:hover,
+.vio-btn:focus-visible {
+  transform: scale(1.18) rotate(-6deg);
+  filter: drop-shadow(0 0 12px rgba(255, 210, 63, .9));
+}
+
+.vio-btn:active {
+  transform: scale(.94);
+}
+
+.vio-btn:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 6px;
+  border-radius: 12px;
+}
+
+.vio-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  padding: .25em .75em;
+  border: 3px solid var(--v-tinta);
+  border-radius: 10px;
+  background: #f8e266;
+  box-shadow: 2px 3px 0 var(--v-tinta);
+  color: var(--v-tinta);
+  font-family: var(--v-titulo);
+  font-size: clamp(.7rem, 1.4vw, 1rem);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: vio-hint 1.6s ease-in-out infinite;
+}
+
+@keyframes vio-hint {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -7px); }
+}
+
+/* ---------- Pantalla completa ---------- */
+
+.vio {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .12) 2px, transparent 2.5px) 0 0 / 22px 22px,
+    linear-gradient(160deg, #1b4fe6, #2563f5 55%, #2f80f7);
+  color: #fff;
+  font-family: var(--v-texto);
+  cursor: none; /* el cursor es el arco */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.vio *,
+.vio *::before,
+.vio *::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vio button {
+  cursor: pointer;
+}
+
+/* Decoración */
+
+.vio__aros {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.vio-deco {
+  position: absolute;
+  pointer-events: none;
+}
+
+.vio-deco--disco {
+  width: clamp(60px, 10vw, 130px);
+  aspect-ratio: 1;
+  border: 5px solid rgba(255, 255, 255, .45);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, .3) 0 12%, transparent 13%);
+}
+
+.vio-deco--a { top: 14%; right: 7%; }
+.vio-deco--b { bottom: 8%; left: 5%; border-color: rgba(255, 210, 63, .7); }
+.vio-deco--c { bottom: 12%; right: 11%; width: clamp(40px, 6vw, 80px); }
+
+/* ---------- Cerrar ---------- */
+
+.vio-cerrar {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 3px solid var(--v-tinta);
+  border-radius: 50%;
+  background: var(--v-oro);
+  box-shadow: 0 3px 0 var(--v-tinta);
+  color: var(--v-tinta);
+  font-family: var(--v-titulo);
+  font-size: 1.1rem;
+  transition: transform .15s, box-shadow .15s;
+}
+
+.vio-cerrar:hover { transform: translateY(-1px); }
+.vio-cerrar:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--v-tinta); }
+.vio-cerrar:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* ---------- HUD ---------- */
+
+.vio__hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px 14px 4.6rem; /* deja sitio al botón de cerrar */
+  pointer-events: none;
+}
+
+.vio__barras {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.vio__vida {
+  height: 16px;
+  overflow: hidden;
+  border: 3px solid var(--v-tinta);
+  border-radius: 999px;
+  background: var(--v-fondo);
+  box-shadow: 0 3px 0 rgba(43, 26, 26, .55);
+}
+
+.vio__vida-fill {
+  width: 100%;
+  height: 100%;
+  transform: scaleX(.7);
+  transform-origin: left center;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .35) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, #ffe27a, var(--v-oro));
+}
+
+.vio__prog {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(7, 34, 110, .55);
+}
+
+.vio__prog-fill {
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--v-cian);
+}
+
+.vio__stats {
+  flex: none;
+  text-align: right;
+}
+
+.vio__score,
+.vio__combo,
+.vio-juicio,
+.vio__cuenta,
+.vio-rank {
+  font-family: var(--v-titulo);
+  -webkit-text-stroke: 7px #fff;
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--v-oscuro);
+}
+
+.vio__score {
+  color: var(--v-cian);
+  font-size: clamp(1.5rem, 4vw, 2.6rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.vio__acc {
+  margin-top: 4px;
+  color: #fff;
+  font-family: var(--v-titulo);
+  font-size: clamp(.85rem, 1.8vw, 1.2rem);
+  text-shadow: 0 2px 0 var(--v-tinta);
+}
+
+.vio__combo {
+  position: absolute;
+  left: 22px;
+  bottom: 14px;
+  z-index: 5;
+  color: var(--v-cian);
+  font-size: clamp(2.2rem, 7vw, 4.4rem);
+  line-height: 1;
+  transform-origin: left bottom;
+  pointer-events: none;
+}
+
+.vio__cuenta {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  width: max-content;
+  height: fit-content;
+  margin: auto;
+  color: var(--v-oro);
+  font-size: clamp(4rem, 17vw, 9rem);
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Campo de juego ---------- */
+
+.vio__zona {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 80px 12px 20px;
+}
+
+.vio__campo {
+  --nota: 64px;
+  position: relative;
+  width: min(96vw, calc((100svh - 120px) * 2.1));
+  aspect-ratio: 2.1 / 1;
+  border: 4px solid #fff;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .13) 1.2px, transparent 1.8px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(7, 34, 110, .55), rgba(7, 34, 110, .35));
+  box-shadow: 6px 7px 0 var(--v-tinta), 0 20px 44px rgba(0, 0, 0, .35);
+  touch-action: none;
+}
+
+/* Las cuerdas (y las notas que viajan por ellas) van un poco inclinadas,
+   como las líneas de la referencia */
+.vio__cuerdas {
+  position: absolute;
+  inset: 0;
+  transform: rotate(1deg);
+  transform-origin: center;
+}
+
+.vio-cuerda {
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 0 rgba(11, 42, 122, .35);
+  transform-origin: center;
+  transition: background .12s, box-shadow .12s;
+}
+
+/* grosores: Sol la más gruesa, Mi la más fina */
+.vio-cuerda:nth-of-type(1) { height: 2px; }
+
+.vio-cuerda.is-activa {
+  background: #fff;
+  box-shadow: 0 0 12px 3px var(--c), 0 0 0 1px var(--c);
+}
+
+.vio-etiqueta {
+  position: absolute;
+  left: 1.2%;
+  display: flex;
+  align-items: baseline;
+  gap: .35em;
+  margin-top: calc(var(--nota) * -.95);
+  color: var(--c);
+  font-family: var(--v-titulo);
+  font-size: calc(var(--nota) * .32);
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 var(--v-oscuro);
+  pointer-events: none;
+}
+
+.vio-etiqueta small {
+  padding: .1em .4em;
+  border: 2px solid var(--v-tinta);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--v-tinta);
+  font-size: .62em;
+  text-shadow: none;
+}
+
+/* El círculo donde se tocan las notas */
+.vio-diana {
+  position: absolute;
+  width: var(--nota);
+  height: var(--nota);
+  margin: calc(var(--nota) / -2) 0 0 calc(var(--nota) / -2);
+  box-sizing: border-box;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .1);
+  box-shadow: 0 0 0 2px var(--v-oscuro), inset 0 0 0 2px var(--v-oscuro);
+  pointer-events: none;
+}
+
+/* ---------- Notas ---------- */
+
+.vio-nota {
+  position: absolute;
+  left: 0;
+  width: var(--nota);
+  height: var(--nota);
+  margin-top: calc(var(--nota) / -2);
+  visibility: hidden;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.vio-nota__cuerpo {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .6), transparent 46%),
+    var(--c, var(--v-cian));
+  box-shadow: 3px 4px 0 var(--v-oscuro), 0 6px 14px rgba(0, 0, 0, .25);
+  color: #fff;
+  font-family: var(--v-titulo);
+  font-size: calc(var(--nota) * .3);
+  line-height: 1;
+  text-shadow: 0 2px 0 var(--v-oscuro), 0 0 6px rgba(11, 42, 122, .5);
+  will-change: transform, opacity;
+}
+
+/* Nota larga: cola con puntitos que sale de la cabeza */
+.vio-nota__cola {
+  position: absolute;
+  left: calc(var(--nota) / 2);
+  top: 22%;
+  z-index: 1;
+  height: 56%;
+  box-sizing: border-box;
+  border: 3px solid #fff;
+  border-left: none;
+  border-radius: 0 999px 999px 0;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .35) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    var(--c, var(--v-cian));
+  box-shadow: 2px 3px 0 var(--v-oscuro);
+}
+
+.vio-nota.is-fallada {
+  opacity: .35;
+  filter: grayscale(.8);
+}
+
+/* ---------- Juicio ---------- */
+
+.vio__juicios {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.vio-juicio {
+  position: absolute;
+  z-index: 20;
+  font-size: calc(var(--nota) * .5);
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-text-stroke: 6px var(--v-oscuro);
+  text-shadow: none;
+}
+
+.vio-juicio--chico {
+  font-size: calc(var(--nota) * .36);
+}
+
+/* ---------- El arco (cursor) ---------- */
+
+.vio-arco {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10005;
+  width: 17px;
+  height: clamp(230px, 38vmin, 360px);
+  box-sizing: border-box;
+  border: 3px solid #fff;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .35), transparent 45%),
+    var(--v-arco);
+  box-shadow: 3px 4px 0 var(--v-tinta), 0 8px 18px rgba(0, 0, 0, .3);
+  transform: translate3d(50vw, 50vh, 0) translate(-50%, -50%) rotate(-33deg);
+  pointer-events: none;
+  transition: box-shadow .12s, filter .12s;
+}
+
+.vio-arco.is-presionado {
+  filter: brightness(1.15);
+  box-shadow: 3px 4px 0 var(--v-tinta), 0 0 22px 4px rgba(47, 212, 255, .85);
+}
+
+/* talón (empuñadura) y punta del arco */
+.vio-arco__talon,
+.vio-arco__punta {
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  box-sizing: border-box;
+  border: 3px solid #fff;
+  border-radius: 4px;
+}
+
+.vio-arco__talon {
+  top: -3px;
+  height: 22px;
+  background: var(--v-oscuro);
+}
+
+.vio-arco__punta {
+  bottom: -3px;
+  left: -2px;
+  right: -2px;
+  height: 12px;
+  background: var(--v-oro);
+}
+
+/* ---------- Tarjetas (menú y resultados) ---------- */
+
+.vio-card {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  height: fit-content;
+  margin: auto;
+  width: min(520px, 92vw);
+  max-height: 92svh;
+  overflow: auto;
+  padding: 1.3rem 1.6rem 1.5rem;
+  border: 3px solid var(--v-tinta);
+  background: var(--v-fondo);
+  box-shadow: 0 6px 0 rgba(43, 26, 26, .55), 0 14px 30px rgba(0, 0, 0, .35);
+  text-align: center;
+  cursor: default;
+}
+
+.vio-card__tag {
+  color: var(--v-oro);
+  font-family: var(--v-titulo);
+  font-size: clamp(.8rem, 2vw, 1.1rem);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 var(--v-tinta);
+}
+
+.vio-title {
+  display: flex;
+  justify-content: center;
+  gap: .04em;
+  margin: .1em 0 .2em;
+  font-family: var(--v-titulo);
+  font-size: clamp(3.4rem, 15vw, 6.4rem);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.vio-letra {
+  display: inline-block;
+  color: var(--v-cian);
+  -webkit-text-stroke: 10px #fff;
+  paint-order: stroke fill;
+  text-shadow: 5px 5px 0 var(--v-oscuro);
+}
+
+.vio-letra:nth-child(even) { color: var(--v-oro); }
+
+.vio-reglas {
+  display: grid;
+  gap: .55rem;
+  margin: .4rem auto 1.1rem;
+  max-width: 40ch;
+  padding: 0;
+  font-size: clamp(.95rem, 2.2vw, 1.1rem);
+  line-height: 1.35;
+  list-style: none;
+  text-align: left;
+}
+
+.vio-reglas li {
+  padding-left: 1.4em;
+  background: radial-gradient(circle, var(--v-oro) 0 45%, transparent 50%) 0 .35em / 1em 1em no-repeat;
+}
+
+.vio-oro { color: var(--v-oro); }
+.vio-cian { color: var(--v-cian); }
+.vio-rojo { color: #ff7a7a; }
+
+.vio-botones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .8rem;
+}
+
+.vio-btn-j {
+  padding: .5em 1.3em;
+  border: 3px solid var(--v-tinta);
+  border-radius: 12px;
+  background: var(--v-oro);
+  box-shadow: 0 4px 0 var(--v-tinta);
+  color: var(--v-tinta);
+  font-family: var(--v-titulo);
+  font-size: clamp(1rem, 2.6vw, 1.35rem);
+  text-transform: uppercase;
+  transition: transform .15s, box-shadow .15s;
+}
+
+.vio-btn-j--sec { background: #fff; }
+
+.vio-btn-j:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--v-tinta); }
+.vio-btn-j:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--v-tinta); }
+.vio-btn-j:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* ---------- Resultados ---------- */
+
+.vio-fin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: .9rem 0 1.2rem;
+}
+
+.vio-fin__datos {
+  flex: 1;
+  display: grid;
+  gap: .5rem;
+  text-align: left;
+}
+
+.vio-fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .8rem;
+  padding-bottom: .3rem;
+  border-bottom: 2px dashed rgba(255, 255, 255, .25);
+  font-size: clamp(.9rem, 2.2vw, 1.05rem);
+}
+
+.vio-fila b {
+  font-family: var(--v-titulo);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 0 var(--v-tinta);
+}
+
+.vio-fila--grande b {
+  color: var(--v-cian);
+  font-size: clamp(1.5rem, 4.5vw, 2.1rem);
+}
+
+.vio-fila--juicios {
+  flex-wrap: wrap;
+  border-bottom: 0;
+  font-family: var(--v-titulo);
+  font-size: clamp(.8rem, 2vw, .95rem);
+  text-shadow: 0 2px 0 var(--v-tinta);
+}
+
+.vio-rank {
+  flex: none;
+  min-width: 1.3em;
+  color: var(--v-oro);
+  font-size: clamp(4.5rem, 16vw, 7rem);
+  line-height: 1;
+  text-align: center;
+  -webkit-text-stroke: 9px #fff;
+  text-shadow: 5px 5px 0 var(--v-oscuro);
+}
+
+.vio-rank[data-rank="A"] { color: var(--v-cian); }
+.vio-rank[data-rank="B"] { color: #8fe3ff; }
+.vio-rank[data-rank="C"],
+.vio-rank[data-rank="D"] { color: #c9d6ff; }
+.vio-rank[data-rank="F"] { color: #ff7a7a; }
+
+/* ---------- Pantallas bajas / celular ---------- */
+
+@media (max-height: 560px) {
+  .vio__zona { padding-top: 64px; padding-bottom: 8px; }
+  .vio__campo { width: min(96vw, calc((100svh - 80px) * 2.1)); }
+  .vio-title { font-size: clamp(2.6rem, 12vh, 4.4rem); }
+}
+
+@media (max-width: 520px) {
+  .vio-fin { flex-direction: column-reverse; }
+  .vio-fin__datos { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vio-hint { animation: none; }
+}

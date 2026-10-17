@@ -34,7 +34,7 @@
   isolation: isolate;
   z-index: 50;
   box-sizing: border-box;
-  background: #f7c948 !important;
+  
   overflow: visible;
 
   /* ---- ESCALA RESPONSIVE ----
@@ -64,10 +64,13 @@
   width: 100%;
   height: 100%;
   z-index: 2;
+
   overflow: visible;
   isolation: isolate;
   container-type: size;
 }
+
+
 
 /* =========================================================
    FONDO DE PAPEL
@@ -75,11 +78,11 @@
 
 .frame--about .l-sm-bg {
   position: absolute;
-  left: calc(-290 * var(--su));
+  left: calc(-160 * var(--su));
   top: calc(-900 * var(--su));
-  width: 130%;
+  width: 117%;
   height: 100%;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
   visibility: visible !important;
   opacity: 1 !important;
@@ -90,7 +93,6 @@
   left: 0;
   top: 0;
   width: 100%;
-  height: 100%;
   transform: none !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -114,12 +116,12 @@
 
 .frame--about .sm-bg__bottom--front {
   position: absolute;
-  left: calc(770 * var(--su));
+  left: calc(630 * var(--su));
   right: auto;
   top: calc(460 * var(--su));
   bottom: 0;
-  width: 60%;
-  height: auto;
+  width: 70%;
+   height: auto;
   max-width: none;
   z-index: 20;
   pointer-events: none;
@@ -221,7 +223,7 @@
 
 .frame--about .l-sm-list {
   position: absolute;
-  left: calc(680 * var(--su));
+  left: calc(590 * var(--su));
   top: calc(720 * var(--su));
   width: auto;
   height: auto;
@@ -261,8 +263,8 @@
 
 .frame--about .sm-diseno {
   position: absolute;
-  left: 44%;
-  top: -56%;
+  left: 65%;
+  top: -50%;
   width: 320%;
   height: auto;
   z-index: 10;
@@ -275,7 +277,7 @@
 
 .frame--about .sm-sub {
   position: absolute;
-  left: 97%;
+  left: 109%;
   top: -5%;
   width: 125%;
   height: auto;
@@ -298,7 +300,7 @@
 
 .frame--about .sm-software {
   position: absolute;
-  left: 26%;
+  left: 35%;
   top: 24%;
   width: 90%;
   height: auto;
@@ -324,7 +326,7 @@
   position: absolute;
   left: var(--bars-x);
   top: var(--bars-y);
-  width: 69%;
+  width: 84%;
   height: 100%;
   z-index: 12;
   transform: rotate(var(--bar-rot));
@@ -333,7 +335,9 @@
 
 .frame--about .sm-bar {
   position: absolute;
-  left: var(--bar-gap); /* mismo borde para todas */
+  /* gap común + ajuste por fila (--bar-dx viene de SKILLS en el JSX).
+     dx positivo = barra más lejos del ícono */
+  left: calc(var(--bar-gap) + var(--bar-dx, 0cqw));
   width: 100%;
   height: auto;
   rotate: var(--bar-tilt);
@@ -344,10 +348,10 @@
 .frame--about .sm-bar__track {
   position: relative;
   width: 100%;
-  height: 17cqw;
+  height: 22cqw;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1.6cqw solid #14142b;
+  border: 2.6cqw solid #14142b;
   background: #ffc72c;
 }
 
@@ -387,9 +391,9 @@
 
 .frame--about .l-sm-char {
   position: absolute;
-  left: 0;
-  top: calc(420 * var(--su));
-  width: 48%;
+  left: calc(-80 * var(--su));
+  top: calc(590 * var(--su));
+  width: 54%;
   height: auto;
   z-index: 7;
 }
@@ -408,21 +412,22 @@
 }
 
 /* =========================================================
-   NOTA MUSICAL
+   Nota
    ========================================================= */
+
 
 .frame--about .l-sm-nota {
   position: absolute;
   left: 0;
-  top: calc(700 * var(--su));
-  width: auto;
+  top: calc(1000 * var(--su));
+  width: calc(270 * var(--su));  /* ← ancho de la nota a tu tamaño de calibración */
   height: auto;
   z-index: 8;
 }
 
 .frame--about .l-sm-nota .in {
   position: relative;
-  width: 100%;
+  width: 40%;   /* antes 90% */
   height: auto;
 }
 
@@ -450,36 +455,52 @@
    ========================================================= */
 
 
- .l-sm-estrella {
+.frame--about .l-sm-estrella {
   position: absolute;
-  left: 45%;
-  top: 55%;
-  width: 9%;
+  left: calc(818 * var(--su));   /* 45% de 1818 */
+  top: calc(500 * var(--su));      /* ← mira abajo */
+  width: calc(164 * var(--su));  /* 9% de 1818 */
   z-index: 5;
   pointer-events: none;
 }
 
-.l-sm-estrella img {
+/* La estrella sí recibe click (efecto de giro) */
+.frame--about .l-sm-estrella .in {
+  pointer-events: auto;
+}
+
+.frame--about .l-sm-estrella img {
   display: block;
   width: 100%;
   height: auto;
+  max-width: none;
   object-fit: contain;
 }
 
-/* Celulares */
-@media (max-width: 768px) {
-  .l-sm-estrella {
-    left: 45%;
-    top: 55%;
-    width: 13%;
-  }
-}
 
-/* Celulares estrechos */
-@media (max-width: 480px) {
-  .l-sm-estrella {
-    left: 45%;
-    top: 55%;
-    width: 16%;
-  }
+
+.scroll-progress {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.15);
+}
+.scroll-progress__bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #ff4d6d;
+  transform-origin: 0 50%;
+}
+.scroll-progress__note {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 1.6rem;
+  color: #ff4d6d;
 }

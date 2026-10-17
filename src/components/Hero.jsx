@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Player from './Player.jsx';
 import SobreMi from './SobreMi.jsx';
+import Multimedia from './Multimedia.jsx';
 
 import fondo from '../assets/fondo.png';
 import hoja from '../assets/hoja.png';
@@ -12,6 +13,7 @@ import personaje from '../assets/personaje.png';
 import titulo from '../assets/titulo.png';
 import laferte from '../assets/laferte.mp3';
 
+// Sobremi.css ya incluye todo lo de la escena Multimedia
 import '../stylesheets/Sobremi.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -62,8 +64,62 @@ export default function Hero({ revealed }) {
   const sheetRef = useRef(null);
   const dispRef = useRef(null);
 
+  // Recorrido de la cámara (se calcula en measureCamera)
+  const camEnd = useRef(0); // px que baja la cámara en total
+  const camRatio = useRef(1); // px de scroll por cada px que baja la cámara
+
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
+
+  // ---------------------------------------------------------
+  // Mide hasta dónde debe bajar la cámara para llegar al final de
+  // la escena Multimedia, y alarga el scroll del hero en esa
+  // proporción (así la velocidad de Inicio y Sobre mí no cambia).
+  // ---------------------------------------------------------
+  const measureCamera = () => {
+    const el = root.current;
+    if (!el) return;
+
+    const vh = window.innerHeight;
+    const t0 = vh * (2 + ABOUT_EXTRA); // recorrido original (hasta Sobre mí)
+    const frame = el.querySelector('.frame--multimedia');
+    const proyectos = el.querySelector('.frame--projects');
+
+    // Posición y alto de la escena Multimedia, calculados aquí para que
+    // no dependan del orden / especificidad del CSS (misma lógica que
+    // --fw y --scene-unit del .hero).
+    if (frame) {
+      const vertical = window.matchMedia('(max-aspect-ratio: 6/5)').matches;
+      const fw = Math.min(window.innerWidth, vh * (vertical ? 0.5 : 2));
+      const unit = vertical ? fw / 2 : vh;
+      const top = 2 * vh + 2 * unit;
+      const h = fw * 1.048;
+
+      frame.style.top = `${top}px`;
+      frame.style.height = `${h}px`;
+      if (proyectos) proyectos.style.top = `${top + h * 0.92}px`;
+    }
+
+    // Scroll original (Inicio → Sobre mí), calculado con las mismas
+    // fórmulas del CSS para no depender de la altura que tenga el hero.
+    const esVertical = window.matchMedia('(max-aspect-ratio: 6/5)').matches;
+    const fwBase = Math.min(window.innerWidth, vh * (esVertical ? 0.5 : 2));
+    const unitBase = esVertical ? fwBase / 2 : vh;
+    const s0 = esVertical ? (2 + ABOUT_EXTRA) * unitBase : 2 * vh;
+    camRatio.current = s0 / t0;
+
+    const t1 = frame
+      ? Math.max(t0, frame.offsetTop + frame.offsetHeight - vh)
+      : t0;
+
+    camEnd.current = t1;
+
+    const extra = (t1 - t0) * camRatio.current;
+    el.style.setProperty('--mm-scroll', `${extra}px`);
+    // La altura se fija aquí también: así el scroll siempre alcanza
+    // hasta el final de Multimedia, sin importar el CSS.
+    el.style.height = `${vh + s0 + extra}px`;
+  };
 
   // ---------------------------------------------------------
   // Utilidades de audio / vinilo (solo usan refs y setters estables)
@@ -385,11 +441,16 @@ export default function Hero({ revealed }) {
   useLayoutEffect(() => {
     if (!revealed || reduce) return;
 
+    // Calcula el recorrido (Inicio → Sobre mí → Multimedia) y lo
+    // recalcula en cada refresh de ScrollTrigger (resize, rotación...)
+    measureCamera();
+    ScrollTrigger.addEventListener('refreshInit', measureCamera);
+
     const ctx = gsap.context(() => {
       gsap.set(cameraTrack.current, { y: 0 });
 
       gsap.to(cameraTrack.current, {
-        y: () => -window.innerHeight * (2 + ABOUT_EXTRA),
+        y: () => -camEnd.current,
         ease: 'none',
         scrollTrigger: {
           trigger: root.current,
@@ -401,7 +462,10 @@ export default function Hero({ revealed }) {
       });
     }, root);
 
-    return () => ctx.revert();
+    return () => {
+      ScrollTrigger.removeEventListener('refreshInit', measureCamera);
+      ctx.revert();
+    };
   }, [revealed]);
 
   // Transición de papel arrugado entre Inicio y Sobre mí
@@ -544,6 +608,128 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, [revealed]);
 
+  // Escena 3 · Multimedia: las capas aparecen de arriba hacia abajo
+  // a medida que la cámara baja (la barra de cada habilidad se llena).
+  // Va después del efecto de la cámara porque usa camRatio.
+  useLayoutEffect(() => {
+    if (!revealed) return;
+
+    const frame = root.current?.querySelector('.frame--multimedia');
+    if (!frame) return;
+
+    if (reduce) {
+      gsap.set(frame.querySelectorAll('.layer .in'), { autoAlpha: 1 });
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      const H = frame.offsetHeight || 1;
+      const vh = window.innerHeight;
+      const clamp = gsap.utils.clamp(0, 0.93);
+
+      // Ventana de scroll: desde que el borde superior de la hoja asoma
+      // (85% de la pantalla) hasta que su centro llega al centro.
+      const len = 0.5 * H + 0.35 * vh;
+
+      const tl = gsap.timeline({
+        defaults: { immediateRender: false },
+        scrollTrigger: {
+          trigger: root.current,
+          start: () =>
+            `top+=${camRatio.current * (frame.offsetTop - window.innerHeight * 0.85)} top`,
+          end: () =>
+            `top+=${camRatio.current *
+            (frame.offsetTop + frame.offsetHeight * 0.5 - window.innerHeight * 0.5)
+            } top`,
+          scrub: 0.8,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      gsap.utils.toArray(frame.querySelectorAll('.layer')).forEach((capa) => {
+        const inner = capa.querySelector('.in');
+        if (!inner) return;
+
+        const w = clamp((capa.offsetTop - vh * 0.1) / len);
+
+        tl.fromTo(
+          inner,
+          { autoAlpha: 0, y: 70, scale: 0.85 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.07,
+            ease: 'back.out(1.4)',
+          },
+          w
+        );
+
+        inner.querySelectorAll('.mm-bar__fill').forEach((fill, i) => {
+          tl.fromTo(
+            fill,
+            { scaleX: 0 },
+            { scaleX: 1, duration: 0.06, ease: 'power2.out' },
+            w + 0.05 + i * 0.015
+          );
+        });
+      });
+    }, root);
+
+    return () => ctx.revert();
+  }, [revealed]);
+
+  // Escena 3 · pequeños movimientos de las piezas
+  useEffect(() => {
+    if (!revealed || reduce) return;
+
+    const ctx = gsap.context(() => {
+      gsap.to('.mm-luis .in img', {
+        y: -12,
+        rotation: 1.4,
+        duration: 2.8,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+
+      gsap.to('.mm-estrella .in img', {
+        rotation: 360,
+        duration: 22,
+        repeat: -1,
+        ease: 'none',
+      });
+
+      gsap.to('.mm-nota .in img', {
+        rotation: -6,
+        y: -6,
+        duration: 2.2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+
+      gsap.to('.mm-clave .in img', {
+        rotation: 4,
+        y: -8,
+        duration: 3,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+
+      gsap.to('.mm-radio .in img', {
+        scale: 1.04,
+        duration: 0.6,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+    }, root);
+
+    return () => ctx.revert();
+  }, [revealed]);
+
   // Movimiento 3D con ratón, giroscopio o dedo
   useEffect(() => {
     if (reduce) return;
@@ -568,7 +754,7 @@ export default function Hero({ revealed }) {
       }));
 
       const tilt = (nx, ny) => {
-        ry(nx * 9);
+        ry(nx * 7);
         rx(-ny * 7);
 
         movers.forEach((m) => {
@@ -607,7 +793,7 @@ export default function Hero({ revealed }) {
                   listen(window, 'deviceorientation', onGyro);
                 }
               })
-              .catch(() => {});
+              .catch(() => { });
           } else {
             listen(window, 'deviceorientation', onGyro);
           }
@@ -859,10 +1045,15 @@ export default function Hero({ revealed }) {
               <SobreMi />
             </div>
 
-            {/* ESCENA 3: PROYECTOS */}
+            {/* ESCENA 3: MULTIMEDIA */}
+            <div className="frame frame--multimedia" id="multimedia">
+              <Multimedia />
+            </div>
+
+            {/* ESCENA 4: PROYECTOS */}
             <div className="frame frame--projects">
               <div className="scene-content scene-content--projects">
-                <span>02 / PROYECTOS</span>
+                <span>03 / PROYECTOS</span>
                 <h2>Ideas que toman forma.</h2>
                 <p>
                   Diseño gráfico, experiencias digitales y exploración 3D.

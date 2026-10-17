@@ -1,4 +1,3 @@
-
 import { useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -19,18 +18,101 @@ import '../stylesheets/Sobremi.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const reduce = window.matchMedia(
-  '(prefers-reduced-motion: reduce)'
-).matches;
-
 const ABOUT_TRIGGER = 'top 85%';
+const DESIGN_WIDTH = 2218;
+
+// ============================================================
+// HABILIDADES
+// y  = posición vertical de la barra (%)
+// dx = ajuste horizontal por fila (cqw). Positivo = más lejos
+//      del ícono. Compensa la curvatura de la columna de íconos.
+// ============================================================
 
 const SKILLS = [
-  { id: 'ai', name: 'Adobe Illustrator', level: 88, y: 5 },
-  { id: 'ae', name: 'Adobe After Effects', level: 78, y: 30.5 },
-  { id: 'ps', name: 'Adobe Photoshop', level: 82, y: 56 },
-  { id: 'canva', name: 'Canva', level: 72, y: 81.5 },
+  { id: 'ai',    name: 'Adobe Illustrator',   level: 88, y: 5,    dx: 0 },
+  { id: 'ae',    name: 'Adobe After Effects', level: 78, y: 30.5, dx: 1 },
+  { id: 'ps',    name: 'Adobe Photoshop',     level: 82, y: 56,   dx: 2 },
+  { id: 'canva', name: 'Canva',               level: 72, y: 81.5, dx: 6 },
 ];
+
+// ============================================================
+// PROFUNDIDAD 3D
+// ============================================================
+
+const DEPTH = {
+  '.l-sm-bg': -30,
+  '.l-sm-card': 5,
+  '.l-sm-estrella': 10,
+  '.l-sm-char': 15,
+  '.l-sm-nota': 20,
+  '.sm-bg__bottom--front': 25,
+  '.l-sm-list': 28,
+  '.l-sm-title': 35,
+};
+
+// ============================================================
+// PARALLAX CON EL MOUSE
+// ============================================================
+
+const PARALLAX = [
+  ['.sm-bg__bottom--front', 14, 1],
+  ['.l-sm-title', 22, 2],
+  ['.sm-diseno', 20, 2],
+  ['.l-sm-card', 32, 2.5],
+  ['.l-sm-nota', 52, 4],
+  ['.l-sm-estrella', 62, 3],
+];
+
+const MAX_TILT = 1;
+
+// ============================================================
+// ELEMENTOS QUE DEBEN ESTAR VISIBLES
+// ============================================================
+
+const VISIBLE_TARGETS = [
+  '.l-sm-title .in',
+  '.l-sm-card .in',
+  '.l-sm-char .in',
+  '.l-sm-nota .in',
+  '.l-sm-estrella .in',
+  '.l-sm-list .in',
+  '.sm-text',
+  '.sm-diseno',
+  '.sm-sub',
+  '.sm-software',
+  '.sm-bar__track',
+  '.sm-word',
+  '.sm-word__inner',
+].join(', ');
+
+// ============================================================
+// REVEAL TEXT
+// Divide el texto en palabras para animarlas individualmente.
+// Permite elegir la etiqueta para conservar la estructura HTML.
+// ============================================================
+
+function RevealText({ children, className = '', as = 'span' }) {
+  const Tag = as;
+  const words = children.trim().split(/\s+/);
+
+  return (
+    <Tag className={className}>
+      {words.map((word, i) => (
+        <span className="sm-word" key={`${word}-${i}`}>
+          <span className="sm-word__inner">{word}</span>
+        </span>
+      )).reduce((result, word, i) => {
+        if (i > 0) result.push(' ');
+        result.push(word);
+        return result;
+      }, [])}
+    </Tag>
+  );
+}
+
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
 
 export default function SobreMi() {
   const anchor = useRef(null);
@@ -40,273 +122,673 @@ export default function SobreMi() {
 
     if (!section) return;
 
-    const ctx = gsap.context(() => {
-      /* Fondo siempre visible */
-      gsap.set('.l-sm-bg', { autoAlpha: 1, x: 0, y: 0 });
-      gsap.set('.l-sm-bg .in', { autoAlpha: 1, x: 0, y: 0 });
+    const mm = gsap.matchMedia(section);
 
-      /* Título y papel rasgado visibles */
-      gsap.set('.l-sm-title--front, .sm-bg__bottom--front', {
-        autoAlpha: 1,
-      });
+    mm.add(
+      {
+        reduce: '(prefers-reduced-motion: reduce)',
+        motion: '(prefers-reduced-motion: no-preference)',
+        fine: '(hover: hover) and (pointer: fine)',
+      },
+      (context) => {
+        const { reduce, fine } = context.conditions;
 
-      /* Estado inicial de las barras */
-      gsap.set('.sm-bar__fill', {
-        width: (i, element) =>
-          reduce ? `${element.dataset.level}%` : '0%',
-      });
+        const su = section.offsetWidth / DESIGN_WIDTH;
 
-      if (reduce) {
+        // ----------------------------------------------------
+        // ESTADO BASE
+        // ----------------------------------------------------
+
+        gsap.set('.l-sm-bg, .l-sm-bg .in', {
+          autoAlpha: 1,
+          x: 0,
+          y: 0,
+        });
+
         gsap.set(
-          '.l-sm-title .in, .l-sm-card .in, .l-sm-char .in, .l-sm-nota .in, .l-sm-estrella .in, .l-sm-list .in, .sm-text, .sm-diseno, .sm-sub, .sm-software, .sm-bar__track',
-          {
+          '.l-sm-title--front, .sm-bg__bottom--front',
+          { autoAlpha: 1 }
+        );
+
+        Object.entries(DEPTH).forEach(([selector, z]) => {
+          gsap.set(selector, { z });
+        });
+
+        // ----------------------------------------------------
+        // MOVIMIENTO REDUCIDO
+        // Todo visible sin animaciones de entrada.
+        // ----------------------------------------------------
+
+        if (reduce) {
+          gsap.set(VISIBLE_TARGETS, {
             autoAlpha: 1,
             x: 0,
             y: 0,
             scale: 1,
             rotation: 0,
-          }
-        );
+            rotationX: 0,
+            rotationY: 0,
+            clearProps: 'transform',
+          });
 
-        return;
-      }
+          gsap.set('.sm-bar__fill', {
+            width: (i, el) => `${el.dataset.level}%`,
+          });
 
-      /* Animaciones continuas */
-      const loops = gsap.timeline({ paused: true });
+          return;
+        }
 
-      loops
-        .to(
-          '.l-sm-nota img',
-          {
-            y: -12,
-            rotation: 8,
-            duration: 1.6,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-          },
-          0
-        )
-        .to(
-          '.l-sm-char img',
-          {
-            y: -8,
-            rotation: 1,
-            duration: 2.8,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-          },
-          0
-        )
-        .to(
-          '.l-sm-estrella img',
-          {
-            y: -10,
-            rotation: 12,
-            duration: 1.8,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-          },
-          0
-        )
-        .to(
-          '.sm-diseno',
-          {
-            rotation: 1.8,
-            duration: 2.4,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-          },
-          0
-        )
-        .to(
-          '.sm-software',
-          {
-            y: 6,
-            duration: 2.2,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-          },
-          0
-        );
+        // ----------------------------------------------------
+        // ESTADO INICIAL DE LAS BARRAS
+        // ----------------------------------------------------
 
-      /* Entrada de los elementos */
-      const tl = gsap.timeline({
-        paused: true,
-        defaults: { ease: 'power3.out' },
-        onComplete: () => loops.play(),
-        onReverseComplete: () => loops.pause(),
-      });
+        gsap.set('.sm-bar__fill', {
+          width: '0%',
+        });
 
-      tl.fromTo(
-        '.l-sm-card .in',
-        { autoAlpha: 0, x: -220, rotation: -8 },
-        { autoAlpha: 1, x: 0, rotation: 0, duration: 1 },
-        0.25
-      )
-        .fromTo(
-          '.sm-text',
-          { autoAlpha: 0 },
-          { autoAlpha: 1, duration: 0.8 },
-          0.9
-        )
-        .fromTo(
-          '.l-sm-title--front .in',
-          {
-            autoAlpha: 0,
-            scale: 0.2,
-            rotation: -12,
-            transformOrigin: '50% 50%',
-          },
-          {
-            autoAlpha: 1,
-            scale: 1,
-            rotation: 0,
-            duration: 1.1,
-            ease: 'back.out(1.9)',
-          },
-          0.5
-        )
-        .fromTo(
-          '.l-sm-char .in',
-          { autoAlpha: 0, y: 240, rotation: 8, scale: 0.7 },
-          {
-            autoAlpha: 1,
-            y: 0,
-            rotation: 0,
-            scale: 1,
-            duration: 1.2,
-            ease: 'back.out(1.5)',
-          },
-          0.6
-        )
-        .fromTo(
-          '.l-sm-nota .in',
-          { autoAlpha: 0, scale: 0, rotation: -120 },
-          {
-            autoAlpha: 1,
-            scale: 1,
-            rotation: 0,
-            duration: 1,
-            ease: 'elastic.out(1, .55)',
-          },
-          1.1
-        )
-        /* Entrada de la estrella */
-        .fromTo(
-          '.l-sm-estrella .in',
-          {
-            autoAlpha: 0,
-            scale: 0,
-            rotation: -90,
-          },
-          {
-            autoAlpha: 1,
-            scale: 1,
-            rotation: 0,
-            duration: 1,
-            ease: 'back.out(1.8)',
-          },
-          1.15
-        )
-        .fromTo(
-          '.l-sm-list .in',
-          { autoAlpha: 0, x: 260, rotation: 10 },
-          { autoAlpha: 1, x: 0, rotation: 0, duration: 1.1 },
-          0.7
-        )
-        .fromTo(
-          '.sm-diseno',
-          {
-            autoAlpha: 0,
-            scale: 0.3,
-            rotation: -10,
-            transformOrigin: '50% 50%',
-          },
-          {
-            autoAlpha: 1,
-            scale: 1,
-            rotation: 0,
-            duration: 0.9,
-            ease: 'back.out(1.8)',
-          },
-          1.3
-        )
-        .fromTo(
-          '.sm-sub',
-          { autoAlpha: 0 },
-          { autoAlpha: 1, duration: 0.6 },
-          1.55
-        )
-        .fromTo(
-          '.sm-software',
-          {
-            autoAlpha: 0,
-            scale: 0.6,
-            y: 40,
-            transformOrigin: '50% 50%',
-          },
-          {
-            autoAlpha: 1,
-            scale: 1,
-            y: 0,
-            duration: 0.8,
-            ease: 'back.out(1.6)',
-          },
-          1.5
-        )
-        .fromTo(
-          '.sm-bar__track',
-          { autoAlpha: 0, x: -30 },
-          {
-            autoAlpha: 1,
-            x: 0,
-            duration: 0.5,
-            stagger: 0.12,
-          },
-          1.75
-        )
-        .to(
-          '.sm-bar__fill',
-          {
-            width: (i, element) =>
-              `${element.dataset.level}%`,
-            duration: 1.4,
+        // ----------------------------------------------------
+        // LOOPS CONTINUOS
+        // ----------------------------------------------------
+
+        const loops = gsap.timeline({ paused: true });
+
+        const loop = (target, vars) =>
+          loops.to(
+            target,
+            {
+              repeat: -1,
+              yoyo: true,
+              ease: 'sine.inOut',
+              ...vars,
+            },
+            gsap.utils.random(0, 1.2)
+          );
+
+        loop('.l-sm-estrella img', {
+          y: -10 * su,
+          rotation: 12,
+          duration: 1.8,
+        });
+
+        loop('.l-sm-nota img', {
+          y: -12 * su,
+          rotation: 8,
+          duration: 1.8,
+        });
+
+        loop('.l-sm-char img', {
+          y: -12 * su,
+          rotation: 1.5,
+          duration: 2.6,
+        });
+
+        loop('.sm-diseno', {
+          yPercent: -3,
+          duration: 2.4,
+        });
+
+        loop('.sm-software', {
+          yPercent: 2,
+          duration: 2.2,
+        });
+
+        // ----------------------------------------------------
+        // TIMELINE PRINCIPAL
+        // ----------------------------------------------------
+
+        const tl = gsap.timeline({
+          paused: true,
+          defaults: {
             ease: 'power3.out',
-            stagger: 0.12,
           },
-          1.95
+          onReverseComplete: () => loops.pause(0),
+        });
+
+        // ====================================================
+        // 1. TARJETA + TEXTO PALABRA POR PALABRA
+        // ====================================================
+
+        tl.addLabel('card', 0.2)
+
+          .fromTo(
+            '.l-sm-card .in',
+            {
+              autoAlpha: 0,
+              x: -220,
+              rotation: -8,
+            },
+            {
+              autoAlpha: 1,
+              x: 0,
+              rotation: 0,
+              duration: 1.1,
+              ease: 'power4.out',
+            },
+            'card'
+          )
+
+          // REVEAL TIPOGRÁFICO
+          .fromTo(
+            '.sm-text .sm-word__inner',
+            {
+              yPercent: 115,
+              autoAlpha: 0,
+              rotationX: -35,
+              transformOrigin: '50% 100%',
+            },
+            {
+              yPercent: 0,
+              autoAlpha: 1,
+              rotationX: 0,
+              duration: 0.65,
+              stagger: {
+                each: 0.045,
+                from: 'start',
+              },
+              ease: 'power4.out',
+            },
+            'card+=0.35'
+          )
+
+          // ==================================================
+          // 2. TÍTULO SOBRE MÍ
+          // ==================================================
+
+          .addLabel('title', 0.45)
+
+          .fromTo(
+            '.l-sm-title--front .in',
+            {
+              autoAlpha: 0,
+              scale: 0.2,
+              rotation: -12,
+              transformOrigin: '50% 50%',
+            },
+            {
+              autoAlpha: 1,
+              scale: 1,
+              rotation: 0,
+              duration: 1.1,
+              ease: 'back.out(1.9)',
+            },
+            'title'
+          )
+
+          // ==================================================
+          // 3. PERSONAJE, NOTA Y ESTRELLA
+          // ==================================================
+
+          .addLabel('chars', 0.6)
+
+          .fromTo(
+            '.l-sm-char .in',
+            {
+              autoAlpha: 0,
+              y: 240,
+              rotation: 8,
+              scale: 0.7,
+              transformOrigin: '50% 100%',
+            },
+            {
+              autoAlpha: 1,
+              y: 0,
+              rotation: 0,
+              scale: 1,
+              duration: 1.2,
+              ease: 'back.out(1.5)',
+            },
+            'chars'
+          )
+
+          .fromTo(
+            '.l-sm-nota .in',
+            {
+              autoAlpha: 0,
+              scale: 0,
+              rotation: -120,
+            },
+            {
+              autoAlpha: 1,
+              scale: 1,
+              rotation: 0,
+              duration: 1,
+              ease: 'elastic.out(1, .55)',
+            },
+            'chars+=0.5'
+          )
+
+          .fromTo(
+            '.l-sm-estrella .in',
+            {
+              autoAlpha: 0,
+              scale: 0,
+              rotation: -90,
+            },
+            {
+              autoAlpha: 1,
+              scale: 1,
+              rotation: 0,
+              duration: 1,
+              ease: 'back.out(1.8)',
+            },
+            'chars+=0.6'
+          )
+
+          // Los loops empiezan cuando la escena está entrando.
+          .add(() => {
+            if (!tl.reversed()) loops.play();
+          }, 'chars+=1.2')
+
+          // ==================================================
+          // 4. HOJA DE SOFTWARE
+          // ==================================================
+
+          .addLabel('list', 0.7)
+
+          .fromTo(
+            '.l-sm-list .in',
+            {
+              autoAlpha: 0,
+              x: 260,
+              rotation: 10,
+            },
+            {
+              autoAlpha: 1,
+              x: 0,
+              rotation: 0,
+              duration: 1.1,
+              ease: 'power4.out',
+            },
+            'list'
+          )
+
+          .fromTo(
+            '.sm-diseno',
+            {
+              autoAlpha: 0,
+              scale: 0.3,
+              rotation: -10,
+              transformOrigin: '50% 50%',
+            },
+            {
+              autoAlpha: 1,
+              scale: 1,
+              rotation: 0,
+              duration: 0.9,
+              ease: 'back.out(1.8)',
+            },
+            'list+=0.6'
+          )
+
+          // REVEAL TIPOGRÁFICO DE LA DESCRIPCIÓN
+          .fromTo(
+            '.sm-sub .sm-word__inner',
+            {
+              yPercent: 115,
+              autoAlpha: 0,
+              rotationX: -25,
+              transformOrigin: '50% 100%',
+            },
+            {
+              yPercent: 0,
+              autoAlpha: 1,
+              rotationX: 0,
+              duration: 0.6,
+              stagger: {
+                each: 0.055,
+                from: 'start',
+              },
+              ease: 'power4.out',
+            },
+            'list+=0.85'
+          )
+
+          .fromTo(
+            '.sm-software',
+            {
+              autoAlpha: 0,
+              scale: 0.6,
+              y: 40,
+              transformOrigin: '50% 50%',
+            },
+            {
+              autoAlpha: 1,
+              scale: 1,
+              y: 0,
+              duration: 0.8,
+              ease: 'back.out(1.6)',
+            },
+            'list+=0.8'
+          )
+
+          // ==================================================
+          // 5. BARRAS DE HABILIDADES
+          // ==================================================
+
+          .addLabel('bars', 'list+=1.05')
+
+          .fromTo(
+            '.sm-bar__track',
+            {
+              autoAlpha: 0,
+              x: -30,
+            },
+            {
+              autoAlpha: 1,
+              x: 0,
+              duration: 0.5,
+              stagger: 0.12,
+            },
+            'bars'
+          )
+
+          .to(
+            '.sm-bar__fill',
+            {
+              width: (i, el) => `${el.dataset.level}%`,
+              duration: 1.5,
+              ease: 'expo.out',
+              stagger: 0.12,
+            },
+            'bars+=0.2'
+          );
+
+        // ----------------------------------------------------
+        // SCROLLTRIGGER
+        // ----------------------------------------------------
+
+        const st = ScrollTrigger.create({
+          trigger: section,
+          start: ABOUT_TRIGGER,
+          end: 'bottom top',
+
+          onEnter: () => {
+            tl.timeScale(1).play();
+          },
+
+          onEnterBack: () => {
+            tl.timeScale(1).play();
+
+            if (tl.progress() === 1) {
+              loops.play();
+            }
+          },
+
+          onLeave: () => {
+            loops.pause();
+          },
+
+          onLeaveBack: () => {
+            loops.pause();
+            tl.timeScale(2.2).reverse();
+          },
+        });
+
+        // ----------------------------------------------------
+        // MICROINTERACCIONES
+        // ----------------------------------------------------
+
+        const cleanups = [];
+
+        if (fine) {
+          // PARALLAX POR CAPAS
+
+          const movers = PARALLAX.map(
+            ([selector, depth, tilt]) => {
+              const el = section.querySelector(selector);
+
+              if (!el) return null;
+
+              gsap.set(el, {
+                transformPerspective: 1200,
+              });
+
+              const opts = {
+                duration: 0.9,
+                ease: 'power3.out',
+              };
+
+              return {
+                depth,
+                tilt: tilt * MAX_TILT,
+                setX: gsap.quickTo(el, 'x', opts),
+                setY: gsap.quickTo(el, 'y', opts),
+                setRY: gsap.quickTo(el, 'rotationY', opts),
+                setRX: gsap.quickTo(el, 'rotationX', opts),
+              };
+            }
+          ).filter(Boolean);
+
+          const onMove = (e) => {
+            const s = section.offsetWidth / DESIGN_WIDTH;
+
+            const nx =
+              (e.clientX / window.innerWidth - 0.5) * 2;
+
+            const ny =
+              (e.clientY / window.innerHeight - 0.5) * 2;
+
+            movers.forEach(
+              ({ depth, tilt, setX, setY, setRY, setRX }) => {
+                setX(-nx * depth * s);
+                setY(-ny * depth * s * 0.6);
+                setRY(nx * tilt);
+                setRX(-ny * tilt);
+              }
+            );
+          };
+
+          const onLeave = () => {
+            movers.forEach(
+              ({ setX, setY, setRY, setRX }) => {
+                setX(0);
+                setY(0);
+                setRY(0);
+                setRX(0);
+              }
+            );
+          };
+
+          section.addEventListener('pointermove', onMove);
+          section.addEventListener('pointerleave', onLeave);
+
+          cleanups.push(() => {
+            section.removeEventListener('pointermove', onMove);
+            section.removeEventListener('pointerleave', onLeave);
+          });
+
+          // HOVER DE LA NOTA MUSICAL
+
+          const notaImg = section.querySelector('.l-sm-nota img');
+          const notaBtn = section.querySelector('.l-sm-nota');
+
+          if (notaImg && notaBtn) {
+            const grow = () => {
+              gsap.to(notaImg, {
+                scale: 1.2,
+                duration: 0.5,
+                ease: 'back.out(2.5)',
+                overwrite: 'auto',
+              });
+            };
+
+            const shrink = () => {
+              gsap.to(notaImg, {
+                scale: 1,
+                duration: 0.4,
+                ease: 'power3.out',
+                overwrite: 'auto',
+              });
+            };
+
+            notaBtn.addEventListener('pointerenter', grow);
+            notaBtn.addEventListener('pointerleave', shrink);
+
+            cleanups.push(() => {
+              notaBtn.removeEventListener('pointerenter', grow);
+              notaBtn.removeEventListener('pointerleave', shrink);
+            });
+          }
+        }
+
+        // ----------------------------------------------------
+        // EFECTOS AL DAR CLICK (sin partículas)
+        // Solo funcionan cuando la animación de entrada terminó.
+        // Cada efecto devuelve su timeline para saber cuándo acaba.
+        // (La nota NO se toca: su click abre OsuGame.)
+        // ----------------------------------------------------
+
+        const gelatina = (el) =>
+          gsap
+            .timeline()
+            .to(el, { scaleX: 1.2, scaleY: 0.8, duration: 0.12 })
+            .to(el, { scaleX: 0.88, scaleY: 1.12, duration: 0.12 })
+            .to(el, { scale: 1, duration: 0.7, ease: 'elastic.out(1,.35)' });
+
+        const onClick = (selector, label, effect) => {
+          const el = section.querySelector(selector);
+
+          if (!el) return;
+
+          const run = () => {
+            if (tl.progress() < 1 || el._busy) return;
+
+            const t = effect(el);
+
+            if (t) {
+              el._busy = true;
+              t.eventCallback('onComplete', () => {
+                el._busy = false;
+              });
+            }
+          };
+
+          const onKey = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              run();
+            }
+          };
+
+          el.style.cursor = 'pointer';
+          el.setAttribute('role', 'button');
+          el.setAttribute('aria-label', label);
+          el.tabIndex = 0;
+          el.addEventListener('click', run);
+          el.addEventListener('keydown', onKey);
+
+          cleanups.push(() => {
+            el.removeEventListener('click', run);
+            el.removeEventListener('keydown', onKey);
+          });
+        };
+
+        // Título "Sobre mí": gelatina
+        onClick('.l-sm-title .in', 'Sobre mí', (el) => gelatina(el));
+
+        // Tarjeta: bamboleo
+        onClick('.l-sm-card .in', 'Tarjeta', (el) =>
+          gsap
+            .timeline()
+            .set(el, { transformOrigin: '50% 0%' })
+            .to(el, { rotation: -3, duration: 0.12 })
+            .to(el, { rotation: 2.5, duration: 0.14 })
+            .to(el, { rotation: 0, duration: 0.9, ease: 'elastic.out(1,.3)' })
         );
 
-      /* Activar animación al llegar a la escena */
-      ScrollTrigger.create({
-        trigger: section,
-        start: ABOUT_TRIGGER,
-        onEnter: () => tl.play(),
-        onEnterBack: () => tl.play(),
-        onLeaveBack: () => {
-          loops.pause();
-          tl.reverse();
-        },
-      });
-    }, section);
+        // Luis: salto con squash & stretch
+        onClick('.l-sm-char .in', 'Luis', (el) => {
+          const s = section.offsetWidth / DESIGN_WIDTH;
 
-    return () => ctx.revert();
+          return gsap
+            .timeline()
+            .set(el, { transformOrigin: '50% 100%' })
+            .to(el, { scaleX: 1.08, scaleY: 0.9, duration: 0.12, ease: 'power2.out' })
+            .to(el, {
+              y: -90 * s,
+              scaleX: 0.95,
+              scaleY: 1.07,
+              rotation: -4,
+              duration: 0.32,
+              ease: 'power2.out',
+            })
+            .to(el, {
+              y: 0,
+              scaleX: 1.06,
+              scaleY: 0.94,
+              rotation: 0,
+              duration: 0.35,
+              ease: 'bounce.out',
+            })
+            .to(el, { scale: 1, duration: 0.5, ease: 'elastic.out(1,.4)' });
+        });
+
+        // Estrella: giro completo + pop
+        onClick('.l-sm-estrella .in', 'Estrella', (el) =>
+          gsap
+            .timeline()
+            .to(el, { rotation: '+=360', scale: 1.3, duration: 0.7, ease: 'back.inOut(2)' })
+            .set(el, { rotation: 0 })
+            .to(el, { scale: 1, duration: 0.5, ease: 'elastic.out(1,.4)' })
+        );
+
+        // Título "Diseño": gelatina
+        onClick('.sm-diseno', 'Diseño', (el) => gelatina(el));
+
+        // Programas: las barras se vuelven a cargar
+        onClick('.sm-software', 'Volver a cargar las barras', (el) =>
+          gsap.fromTo(
+            el.querySelectorAll('.sm-bar__fill'),
+            { width: '0%' },
+            {
+              width: (i, f) => `${f.dataset.level}%`,
+              duration: 1.5,
+              ease: 'expo.out',
+              stagger: 0.12,
+            }
+          )
+        );
+
+        // ----------------------------------------------------
+        // LIMPIEZA
+        // ----------------------------------------------------
+
+        return () => {
+          cleanups.forEach((fn) => fn());
+
+          st.kill();
+          tl.kill();
+          loops.kill();
+        };
+      }
+    );
+
+    const refresh = () => ScrollTrigger.refresh();
+
+    window.addEventListener('load', refresh);
+
+    return () => {
+      window.removeEventListener('load', refresh);
+      mm.revert();
+    };
   }, []);
+
+  // ==========================================================
+  // JSX
+  // ==========================================================
 
   return (
     <>
-      {/* Fondo de papel */}
+      {/* FONDO DE PAPEL */}
+
       <div className="l-sm l-sm-bg" ref={anchor}>
         <div className="in">
           <div className="sm-bg">
             <div
               className="sm-bg__mid"
-              style={{ backgroundImage: `url(${papelMid})` }}
+              style={{
+                backgroundImage: `url(${papelMid})`,
+              }}
             />
 
             <img
@@ -319,27 +801,36 @@ export default function SobreMi() {
         </div>
       </div>
 
-      {/* Contenido principal */}
+      {/* CONTENIDO PRINCIPAL */}
+
       <div className="about__stage">
-        {/* Tarjeta de presentación */}
+        {/* TARJETA DE PRESENTACIÓN */}
+
         <div className="l-sm l-sm-card">
           <div className="in">
             <div className="sm-card">
-              <img src={tarjeta} alt="" draggable="false" />
+              <img
+                src={tarjeta}
+                alt=""
+                draggable="false"
+              />
 
               <div className="sm-text">
                 <p>
-                  Diseño porque me gusta pensar, música porque la
-                  necesito y duermo porque debería. Me gusta dibujar,
-                  crear personajes, jugar videojuegos y convertir
-                  ideas random en cosas que realmente existen.
+                  <RevealText>
+                    Diseño porque me gusta pensar, música porque la
+                    necesito y duermo porque debería. Me gusta dibujar,
+                    crear personajes, jugar videojuegos y convertir
+                    ideas random en cosas que realmente existen.
+                  </RevealText>
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Luis saludando */}
+        {/* LUIS SALUDANDO */}
+
         <div className="l-sm l-sm-char">
           <div className="in">
             <img
@@ -350,16 +841,22 @@ export default function SobreMi() {
           </div>
         </div>
 
-        {/* Nota musical: abre el reto de ritmo */}
+        {/* NOTA MUSICAL: ABRE OSUGAME */}
+
         <div className="l-sm l-sm-nota">
           <div className="in">
             <OsuGame>
-              <img src={nota} alt="" draggable="false" />
+              <img
+                src={nota}
+                alt=""
+                draggable="false"
+              />
             </OsuGame>
           </div>
         </div>
 
-        {/* Estrella decorativa */}
+        {/* ESTRELLA DECORATIVA */}
+
         <div className="l-sm l-sm-estrella">
           <div className="in">
             <img
@@ -371,14 +868,20 @@ export default function SobreMi() {
         </div>
       </div>
 
-      {/* Título Sobre mí */}
+      {/* TÍTULO SOBRE MÍ */}
+
       <div className="l-sm l-sm-title l-sm-title--front">
         <div className="in">
-          <img src={sobremi} alt="Sobre mí" draggable="false" />
+          <img
+            src={sobremi}
+            alt="Sobre mí"
+            draggable="false"
+          />
         </div>
       </div>
 
-      {/* Papel rasgado inferior */}
+      {/* PAPEL RASGADO INFERIOR */}
+
       <img
         className="sm-bg__bottom sm-bg__bottom--front"
         src={papelBottom}
@@ -386,7 +889,8 @@ export default function SobreMi() {
         draggable="false"
       />
 
-      {/* Contenido de la hoja */}
+      {/* CONTENIDO DE LA HOJA */}
+
       <div className="l-sm l-sm-list l-sm-list--front">
         <div className="in">
           <div className="sm-list">
@@ -397,12 +901,15 @@ export default function SobreMi() {
               draggable="false"
             />
 
-            <p className="sm-sub">
+            {/* DESCRIPCIÓN CON REVELADO TIPOGRÁFICO */}
+
+            <RevealText as="p" className="sm-sub">
               Estos son los software que manejo para diseño y
               creación de recursos y diseño de personajes.
-            </p>
+            </RevealText>
 
-            {/* Programas + barras */}
+            {/* PROGRAMAS + BARRAS */}
+
             <div className="sm-software">
               <img
                 className="sm-software__img"
@@ -411,13 +918,17 @@ export default function SobreMi() {
                 draggable="false"
               />
 
-              {/* Barras de nivel */}
+              {/* BARRAS DE NIVEL */}
+
               <div className="sm-bars">
                 {SKILLS.map((skill) => (
                   <div
                     key={skill.id}
                     className="sm-bar"
-                    style={{ top: `${skill.y}%` }}
+                    style={{
+                      top: `${skill.y}%`,
+                      '--bar-dx': `${skill.dx}cqw`,
+                    }}
                     role="progressbar"
                     aria-label={skill.name}
                     aria-valuemin={0}

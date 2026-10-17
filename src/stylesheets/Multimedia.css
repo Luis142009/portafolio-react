@@ -1,0 +1,233 @@
+/* =========================================================
+   ESCENA 3 · MULTIMEDIA
+   Importar DESPUÉS de Sobremi.css (en Hero.jsx), porque
+   sobreescribe la altura del .hero y la posición de Proyectos.
+   Todo se mide con la misma escala (--fw, --hs, --scene-unit).
+   ========================================================= */
+
+.hero {
+  /* Dónde empieza la escena 3 (por defecto, el antiguo lugar de Proyectos) */
+  --mm-top: calc(200svh + 2 * var(--scene-unit));
+  /* Alto de la hoja: proporción de hojamultimedia.png (1870 x 1960) */
+  --mm-h: calc(var(--fw) * 1.048);
+  /* Scroll extra que calcula Hero.jsx (no tocar) */
+  --mm-scroll: 0px;
+
+  height: calc(300svh + var(--mm-scroll));
+}
+
+/* Mayor especificidad que .frame (Hero.jsx también fija top/height en px) */
+.camera-track .frame.frame--multimedia {
+  top: var(--mm-top);
+  height: var(--mm-h);
+  margin-top: 0;
+  background: transparent;
+}
+
+/* Proyectos baja para quedar justo debajo del borde rasgado */
+.camera-track .frame.frame--projects {
+  top: calc(var(--mm-top) + var(--mm-h) * .92);
+}
+
+@media (max-aspect-ratio: 6/5) {
+  .hero {
+    height: calc(
+      100svh + (2 + var(--about-extra, 0.6)) * var(--scene-unit) + var(--mm-scroll)
+    );
+  }
+}
+
+/* ---------- Contenedor ---------- */
+
+.mm {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.mm .layer .in {
+  position: relative;
+}
+
+/* ---------- Posiciones (en % de la hoja) ---------- */
+
+.mm-papel { top: calc(-150 * var(--hs)); left: calc(-260 * var(--hs)); width: 140%; }
+/* El globo va por encima de Luis (ver GLOBO_Z / LUIS_Z en Multimedia.jsx) */
+.mm-globo   { top: -7%;    left: -15%;   width: 130.5%; z-index: 70; position:absolute; }
+/* Nota, título y estrella: por encima del globo (z-index 70) */
+.mm-nota    { top: 7.5%;  left: 9.5%; width: 17.5%; z-index: 80; position: absolute; }
+.mm-titulo  { top: 11%;    left: 25%;   width: 50%; z-index: 80; position: absolute; }
+.mm-estrella{ top: 9%;    left: 75%;   width: 13.5%; z-index: 80; position: absolute; }
+
+.mm-marco--web   { top: 30.5%; left: .8%;   width: 36%; }
+.mm-marco--video { top: 30.5%; left: 65.7%; width: 36%; }
+
+.mm-tit--web   { top: 32%;   left: 8.7%;  width: 22%; }
+.mm-tit--video { top: 32.2%; left: 69.5%; width: 26%; }
+
+.mm-desc--web   { top: 42.5%; left: 3.8%;  width: 31%; }
+.mm-desc--video { top: 42.5%; left: 67.8%; width: 31%; }
+
+.mm-tools--web   { top: 50.5%; left: 3.4%;  width: 11%; }
+.mm-tools--video { top: 51.9%; left: 66.8%; width: 31.75%; }
+
+.mm-radio { top: 82.5%; left: 11.2%;  width: 17%; }
+.mm-clave { top: 81.5%; left: 93.5%; width: 3.5%; }
+
+.mm-luis  { top: 67%;   left: 37%;   width: 27.7%; }
+
+/* ---------- Descripciones ---------- */
+
+.mm-desc .in {
+  container-type: inline-size;
+}
+
+.mm-desc p {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Smile";
+  font-size: 8.4cqw;
+  line-height: 1.15;
+}
+
+/* ---------- Texto que se escribe (GSAP) ---------- */
+
+.tw-h {
+  visibility: hidden; /* reserva el espacio del texto que aún no se escribe */
+}
+
+.tw-caret {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  opacity: 0; /* GSAP lo muestra solo mientras escribe */
+}
+
+.tw-caret::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: .12em;
+  height: .85em;
+  border-left: .1em solid var(--ink);
+  animation: mm-blink .6s steps(1) infinite;
+}
+
+@keyframes mm-blink {
+  50% { opacity: 0; }
+}
+
+/* ---------- Herramientas + barras de habilidad ---------- */
+
+.mm-tools__icons {
+  width: 37%;
+}
+
+.mm-tools--video .mm-tools__icons {
+  width: 38%;
+}
+
+.mm-bar {
+  position: absolute;
+  left: 50%;
+  width: 48%;
+  height: 16%;
+  overflow: hidden;
+  container-type: inline-size;
+  border: max(1.5px, calc(9.5 * var(--hs))) solid #14142b;
+  background: #0b2a78;
+  box-shadow: 0 max(2px, calc(5 * var(--hs))) 0 rgba(26, 28, 43, 0.45);
+}
+
+
+.mm-tools--video .mm-bar {
+
+  left: 40%;
+  width: 56%;
+}
+
+
+
+.mm-tools--web .mm-bar {
+  left: 106%;    /* dónde empiezan, medido desde el borde del bloque */
+  width: 176%;   /* largo */
+  height: 14%;  /* grosor */
+}
+
+
+
+.mm-bar__fill {
+  --corte: 6cqw; /* qué tan inclinado es el corte: más alto = más diagonal */
+  position: relative;
+  /* GSAP anima el width (0 -> nivel) para que se vea cómo cargan */
+  width: calc(var(--lvl) * 1%);
+  height: 100%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .3) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    var(--gold);
+  transform-origin: left center;
+  /* punta cortada en diagonal (se quitó el border-right) */
+  clip-path: polygon(0 0, calc(100% - var(--corte)) 0, 100% 100%, 0 100%);
+}
+
+/* Línea oscura que sigue la misma diagonal del corte */
+.mm-bar__fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #14142b;
+  clip-path: polygon(
+    calc(100% - var(--corte) - 2.5cqw) 0,
+    calc(100% - var(--corte)) 0,
+    100% 100%,
+    calc(100% - 2.5cqw) 100%
+  );
+}
+
+/* ---------- Interacción (clicks) ---------- */
+
+/* Las capas no capturan el mouse (el globo es enorme y taparía todo)... */
+.mm .layer {
+  pointer-events: none;
+}
+
+/* ...solo los elementos con click */
+.mm .clicky .in {
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mm .clicky img {
+  transition: filter .2s;
+}
+
+.mm .clicky:hover img {
+  filter: brightness(1.08) drop-shadow(0 0 calc(8 * var(--hs)) rgba(255, 255, 255, .7));
+}
+
+.mm .clicky .in:focus-visible {
+  outline: 3px dashed var(--gold);
+  outline-offset: 4px;
+}
+
+/* Notas y chispas que salen al hacer click */
+.mm-chispa {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  font-family: "Smile", "Segoe UI Symbol", sans-serif;
+  font-size: max(18px, calc(26 * var(--hs)));
+  line-height: 1;
+  text-shadow: 0 2px 0 #14142b;
+  pointer-events: none;
+}
+
+/* ---------- Accesibilidad ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-bar__fill {
+    transform: none !important;
+  }
+}
