@@ -6,7 +6,7 @@ import estrella from '../assets/estrella.png';
 import stared from '../assets/stared.png';
 import carita from '../assets/carita.png';
 import '../stylesheets/Violin.css';
-import { CHART } from './violinChart.js';
+import { CHART } from './Violinchart.js';
 
 // ---------------------------------------------------------
 // AJUSTES DE DIFICULTAD
