@@ -14,15 +14,13 @@
    ========================================================= */
 
 /* FUENTE SMILE
-   Pon el archivo en src/assets/ (Smile.ttf). Si tiene otro
-   nombre o extensión (.otf, .woff2) cambia la ruta y el format(). */
+   El archivo está en src/assets/smile.ttf (en minúscula: Vercel
+   distingue mayúsculas de minúsculas). */
 @font-face {
   font-family: 'Smile';
   src: local('Smile'),
        local('Smile Regular'),
-       url('../assets/Smile.ttf') format('truetype'),
-       url('../assets/Smile.otf') format('opentype'),
-       url('../assets/Smile.woff2') format('woff2');
+       url('../assets/smile.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

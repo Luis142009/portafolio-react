@@ -6,7 +6,7 @@
 
 @font-face {
   font-family: "Titan";
-  src: url("../assets/fonts/titan.ttf") format("truetype");
+  src: url("../assets/titan.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -14,7 +14,7 @@
 
 @font-face {
   font-family: "Smile";
-  src: url("../assets/fonts/smile.ttf") format("truetype");
+  src: url("../assets/smile.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
