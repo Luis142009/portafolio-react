@@ -4,7 +4,8 @@
    sombras duras, puntitos, vinilos, estrellas, Titan / Smile.
 
    El campo es un PLANO inclinado en 3D (perspective + rotateX).
-   Las notas son "gemas" que flotan sobre el plano con su sombra.
+   Las notas son círculos con una carita en el centro que se
+   proyectan sobre el plano con su sombra.
    Guárdalo en src/stylesheets/Violin.css
    ========================================================= */
 
@@ -70,7 +71,7 @@
   padding: .25em .75em;
   border: 3px solid var(--v-tinta);
   border-radius: 10px;
-  background: #f8e266;
+  background: #f3d73c;
   box-shadow: 2px 3px 0 var(--v-tinta);
   color: var(--v-tinta);
   font-family: var(--v-titulo);
@@ -105,7 +106,6 @@
     linear-gradient(170deg, #153fd0, #2563f5 50%, #2f80f7 78%, #0b2a7a);
   color: #fff;
   font-family: var(--v-texto);
-  cursor: none;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -483,7 +483,7 @@
   text-shadow: none;
 }
 
-/* ---------- Notas: círculos planos (estilo osu!) ---------- */
+/* ---------- Notas: círculos planos con carita (estilo osu!) ---------- */
 /* Cada nota nace en un punto de su cuerda, quieta, y crece de 0 a 100%.
    La cabeza vive en una capa plana y el JS la proyecta cada frame sobre el
    plano 3D, así se ve siempre como un círculo limpio, solo con tamaño de
@@ -530,6 +530,21 @@
   border-radius: 50%;
 }
 
+/* Carita en el centro de la nota.
+   Vive dentro del cuerpo, así el recorte (clip-path) al partir la nota
+   también parte la carita en dos mitades. */
+.vio-nota__carita {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 62%;
+  height: 62%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 /* Anillo fantasma: marca el tamaño final. Cuando la nota lo llena, ¡córtala! */
 .vio-nota__aro {
   position: absolute;
@@ -568,8 +583,6 @@
 }
 
 .vio-nota.is-sostenida .vio-nota__timer { opacity: 1; }
-
-
 
 /* Tajo y chispas al rajar una nota (capa plana, sobre el plano 3D) */
 .vio-raja {
@@ -619,12 +632,11 @@
   50% { transform: translateY(-12px); }
 }
 
-/* Fallada: se apaga solo la gema (no la nota entera, para no aplanar el 3D) */
+/* Fallada: se apaga solo la nota (no la nota entera, para no aplanar el 3D) */
 .vio-nota.is-fallada .vio-nota__cuerpo {
   opacity: .35 !important;
   filter: grayscale(.8);
 }
-
 
 /* ---------- Juicio (capa plana, no se inclina) ---------- */
 
@@ -874,4 +886,124 @@
   .vio::before,
   .vio-deco--disco,
   .vio-estrella { animation: none; }
+}
+/* =========================================================
+   RESPONSIVE CELULAR
+   ========================================================= */
+
+/* ---------- Móvil: vertical ---------- */
+@media (max-width: 700px) and (orientation: portrait) {
+  .vio__hud {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px 10px 3.6rem;
+  }
+  .vio__barras { flex-basis: 100%; order: 2; padding-top: 0; }
+  .vio__stats { order: 1; margin-left: auto; }
+  .vio__vida { height: 14px; }
+
+  .vio-cerrar {
+    top: 10px;
+    left: 12px;
+    width: 2.3rem;
+    height: 2.3rem;
+  }
+
+  .vio__zona { padding: 110px 6px 24px; }
+
+  /* Campo más alto: notas y cuerdas quedan más grandes */
+  .vio__campo {
+    width: 96vw;
+    aspect-ratio: 4 / 3;
+  }
+
+  .vio-etiqueta { font-size: calc(var(--nota) * .28); }
+
+  .vio-arco { --arco-h: clamp(150px, 30dvh, 260px); }
+
+  .vio__combo {
+    left: 14px;
+    bottom: 10px;
+    font-size: clamp(2rem, 11vw, 3.2rem);
+  }
+
+  .vio-deco--disco { opacity: .5; }
+
+  .vio-card {
+    width: 94vw;
+    max-height: 94dvh;
+    padding: 1rem 1rem 1.2rem;
+    border-radius: 18px;
+  }
+  .vio-reglas { gap: .4rem; font-size: .9rem; }
+  .vio-title { font-size: clamp(2.8rem, 18vw, 4.6rem); }
+  .vio-botones { gap: .6rem; }
+  .vio-btn-j { padding: .5em 1em; }
+}
+
+/* ---------- Móvil: horizontal ---------- */
+@media (max-height: 480px) and (orientation: landscape) {
+  .vio-arco { --arco-h: 42dvh; }
+  .vio__hud { padding: 8px 14px 8px 3.4rem; }
+  .vio-cerrar { top: 8px; left: 10px; width: 2.2rem; height: 2.2rem; }
+  .vio__zona { padding: 54px 8px 10px; }
+  .vio__campo { width: min(86vw, calc((100dvh - 70px) * 2.1)); }
+  .vio-card { padding: .8rem 1.2rem 1rem; }
+  .vio-reglas { gap: .3rem; font-size: .85rem; max-width: 52ch; }
+}
+
+/* ---------- Botón de cierre: estrella (stared.png) ---------- */
+
+.vio-cerrar {
+  width: clamp(44px, 7vw, 60px);
+  height: auto;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 3px 0 rgba(11, 42, 122, .6));
+  transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), filter .2s;
+}
+
+.vio-cerrar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.vio-cerrar:hover {
+  transform: scale(1.15) rotate(18deg);
+  filter: drop-shadow(0 0 12px rgba(255, 210, 63, .95));
+}
+.vio-cerrar:active { transform: scale(.92) rotate(-8deg); box-shadow: none; }
+.vio-cerrar:focus-visible { outline: 3px solid #fff; outline-offset: 3px; border-radius: 50%; }
+
+/* El HUD deja espacio a la estrella */
+.vio__hud { padding-left: 5.2rem; }
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .vio-cerrar { width: 44px; top: 8px; left: 10px; }
+  .vio__hud { padding-left: 4rem; }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .vio-cerrar { width: 40px; top: 6px; left: 8px; }
+  .vio__hud { padding-left: 3.8rem; }
+}
+
+/* Durante la partida no se ve el cursor (solo el arco), ni sobre botones */
+.vio--jugando,
+.vio--jugando *,
+.vio--jugando *::before,
+.vio--jugando *::after {
+  cursor: none !important;
+}
+
+/* La estrella del cursor global (componente Cursor) se esconde durante la partida */
+body.vio-jugando .cursor {
+  display: none !important;
 }

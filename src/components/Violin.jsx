@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import gsap from 'gsap';
 import cancionUrl from '../assets/expectations.mp3';
 import estrella from '../assets/estrella.png';
+import stared from '../assets/stared.png';
+import carita from '../assets/carita.png';
 import '../stylesheets/Violin.css';
 import { CHART } from './violinChart.js';
 
@@ -20,6 +22,10 @@ const VEL_MIN = 110;
 const TOL_X = 1.55;
 const MUSICA = 0.9;
 const MAX_FALLOS = 20;
+
+// Vida: cada fallo quita 5% y cada acierto devuelve 3%.
+const VIDA_FALLO = 1 / MAX_FALLOS;
+const VIDA_ACIERTO = 0.03;
 
 // Aciertos necesarios para desbloquear Expectations en "Mis canciones"
 const META_DESBLOQUEO = 40;
@@ -414,6 +420,16 @@ function Juego({ onCerrar }) {
     return () => ctx.revert();
   }, [fase]);
 
+  // Mientras se juega se esconde la estrella del componente Cursor
+  // (Cursor.css: body.vio-jugando .cursor { display: none })
+  useEffect(() => {
+    const jugando = fase === 'jugando';
+
+    document.body.classList.toggle('vio-jugando', jugando);
+
+    return () => document.body.classList.remove('vio-jugando');
+  }, [fase]);
+
   const jugar = async () => {
     if (!audioRef.current || audioRef.current.ac.state === 'closed') {
       audioRef.current = crearAudio();
@@ -432,7 +448,7 @@ function Juego({ onCerrar }) {
 
   return (
     <div
-      className="vio"
+      className={`vio${fase === 'jugando' ? ' vio--jugando' : ''}`}
       ref={raizRef}
       role="dialog"
       aria-modal="true"
@@ -478,7 +494,7 @@ function Juego({ onCerrar }) {
         onClick={onCerrar}
         aria-label="Cerrar"
       >
-        ✕
+        <img src={stared} alt="" draggable="false" />
       </button>
 
       {fase === 'jugando' && (
@@ -525,14 +541,9 @@ function Juego({ onCerrar }) {
             </li>
 
             <li>
-              Las notas aparecen y van creciendo. Cuando llenen su anillo,
-              córtalas cruzando la cuerda por encima con un golpe rápido de
+              Las caritas aparecen y van creciendo. Cuando llenen su anillo,
+              pártelas cruzando la cuerda por encima con un golpe rápido de
               arco.
-            </li>
-
-            <li>
-              La <b className="vio-oro">flecha</b> marca el sentido del arco
-              (↓ / ↑). Seguirla da más puntos.
             </li>
 
             <li>
@@ -551,8 +562,9 @@ function Juego({ onCerrar }) {
             </li>
 
             <li>
-              Tienes <b className="vio-rojo">{MAX_FALLOS} fallos</b> antes
-              de perder la partida.
+              Cada <b className="vio-rojo">fallo</b> te quita vida y cada{' '}
+              <b className="vio-oro">acierto</b> te la devuelve. Si la barra
+              se vacía, pierdes.
             </li>
           </ul>
 
@@ -614,9 +626,7 @@ function Resultados({ res, onOtra, onCerrar }) {
   return (
     <div className="vio-card" ref={ref}>
       <div className="vio-card__tag">
-        {res.fallo
-          ? `¡${MAX_FALLOS} fallos! Se acabaron los intentos…`
-          : '¡Canción completa!'}
+        {res.fallo ? '¡Te quedaste sin vida!' : '¡Canción completa!'}
       </div>
 
       <div className="vio-fin">
@@ -721,20 +731,6 @@ function Arco() {
         stroke="#1a63d6"
         strokeWidth="2"
         d="M46 626 L47 640 M56 624 L57 640"
-      />
-    </svg>
-  );
-}
-
-function Icono({ dir }) {
-  return (
-    <svg className="vio-flecha" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d={
-          dir === 'abajo'
-            ? 'M12 4.5 V17 M6.2 11.6 L12 17.4 L17.8 11.6'
-            : 'M12 19.5 V7 M6.2 12.4 L12 6.6 L17.8 12.4'
-        }
       />
     </svg>
   );
@@ -864,6 +860,7 @@ function Partida({ audio, onFin }) {
     const ro = new ResizeObserver(medir);
     ro.observe(campo);
     window.addEventListener('resize', medir);
+    window.addEventListener('orientationchange', medir);
 
     // Geometría 3D
     const sen = Math.sin((INCL * Math.PI) / 180);
@@ -1054,6 +1051,7 @@ function Partida({ audio, onFin }) {
       }
     };
 
+    // Parte la nota (con su carita) en dos mitades que caen
     const partirNota = (n, th) => {
       const rad = (th * Math.PI) / 180;
       const dx = Math.sin(rad);
@@ -1078,6 +1076,7 @@ function Partida({ audio, onFin }) {
 
         const cu = mitad.querySelector('.vio-nota__cuerpo');
 
+        // El clip-path recorta el cuerpo completo: círculo + carita
         cu.style.clipPath = `polygon(${punto(1, 0)}, ${punto(-1, 0)}, ${punto(-1, lado)}, ${punto(1, lado)})`;
         notasCapa.appendChild(mitad);
 
@@ -1255,6 +1254,9 @@ function Partida({ audio, onFin }) {
       S.maxCombo = Math.max(S.maxCombo, S.combo);
       S.score += base * bonoDir * (1 + Math.min(S.combo, 50) / 25);
 
+      // Cada acierto regenera un poco de vida
+      S.vida = Math.min(1, S.vida + VIDA_ACIERTO);
+
       popup(txt, n, color);
 
       const th = (dir === 'arriba' ? -1 : 1) * 12 + gsap.utils.random(-8, 8);
@@ -1305,6 +1307,7 @@ function Partida({ audio, onFin }) {
 
       if (completa) {
         S.score += 100;
+        S.vida = Math.min(1, S.vida + VIDA_ACIERTO);
 
         popup('¡Sostenida!', a.n, '#ffd23f', true);
         rajaFx(a.n, gsap.utils.random(-14, 14));
@@ -1326,7 +1329,8 @@ function Partida({ audio, onFin }) {
     };
 
     // -------------------------------------------------------
-    // FALLOS: 20 FALLOS = FIN DE LA PARTIDA
+    // FALLOS: cada fallo quita vida; con la barra vacía se pierde.
+    // Sin texto flotante al fallar.
     // -------------------------------------------------------
     const fallar = (n) => {
       if (n.juzgada || S.fin) return;
@@ -1336,13 +1340,9 @@ function Partida({ audio, onFin }) {
       S.juzgadas += 1;
       S.combo = 0;
 
-      // Cada fallo consume el 5% de la barra.
-      // El fallo número 20 la deja vacía.
-      S.vida = Math.max(0, 1 - S.cont.f / MAX_FALLOS);
+      S.vida = Math.max(0, S.vida - VIDA_FALLO);
 
       n.el.classList.add('is-fallada');
-
-      popup(`Fallo ${S.cont.f}/${MAX_FALLOS}`, n, '#ff7a7a');
       apagonMusica();
 
       gsap.fromTo(
@@ -1353,7 +1353,7 @@ function Partida({ audio, onFin }) {
 
       pintarHud();
 
-      if (S.cont.f >= MAX_FALLOS) {
+      if (S.vida <= 0.0001) {
         terminar(true);
       }
     };
@@ -1726,6 +1726,7 @@ function Partida({ audio, onFin }) {
       ro.disconnect();
 
       window.removeEventListener('resize', medir);
+      window.removeEventListener('orientationchange', medir);
 
       raiz.removeEventListener('pointerdown', abajo);
       raiz.removeEventListener('pointermove', mover);
@@ -1840,7 +1841,12 @@ function Partida({ audio, onFin }) {
                 )}
 
                 <div className="vio-nota__cuerpo">
-                  <Icono dir={n.dir} />
+                  <img
+                    className="vio-nota__carita"
+                    src={carita}
+                    alt=""
+                    draggable="false"
+                  />
                 </div>
               </div>
             ))}
