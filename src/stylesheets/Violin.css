@@ -1,11 +1,11 @@
 /* =========================================================
-   RETO DEL VIOLÍN 3D  (estilo osu!, campo en perspectiva)
+   RETO DEL VIOLÍN  (estilo osu!, campo plano)
    Misma estética del portafolio / loader: azules, bordes tinta,
    sombras duras, puntitos, vinilos, estrellas, Titan / Smile.
 
-   El campo es un PLANO inclinado en 3D (perspective + rotateX).
-   Las notas son círculos con una carita en el centro que se
-   proyectan sobre el plano con su sombra.
+   El campo es un plano INVISIBLE inclinado en 3D: solo se ven las cuerdas
+   (elásticas, con sombra y perspectiva). Las notas son círculos con una
+   carita en el centro que se proyectan sobre cada cuerda.
    Guárdalo en src/stylesheets/Violin.css
    ========================================================= */
 
@@ -341,7 +341,7 @@
   pointer-events: none;
 }
 
-/* ---------- Campo de juego 3D ---------- */
+/* ---------- Campo de juego (perspectiva 3D) ---------- */
 
 .vio__zona {
   position: relative;
@@ -352,7 +352,7 @@
   padding: 90px 12px 40px;
 }
 
-/* El "campo" es solo la caja que da el tamaño. El plano 3D vive dentro. */
+/* El "campo" es solo la caja que da el tamaño. El plano (invisible) vive dentro. */
 .vio__campo {
   --nota: 64px;
   position: relative;
@@ -361,7 +361,7 @@
   touch-action: none;
 }
 
-/* Resplandor en el "suelo" bajo el plano */
+/* Resplandor bajo el plano */
 .vio__campo::before {
   content: "";
   position: absolute;
@@ -375,36 +375,12 @@
 }
 
 /* EL PLANO: el transform (perspective + rotateX) lo pone el JSX en línea.
-   Su grosor se finge con una pila de sombras duras hacia abajo. */
+   Es INVISIBLE: no tiene borde, fondo ni grosor. Solo existe para dar la
+   perspectiva a las cuerdas, carriles y etiquetas que viven dentro. */
 .vio__plano {
   position: absolute;
   inset: 0;
   z-index: 1;
-  border: 4px solid #fff;
-  border-radius: 22px;
-  background:
-    radial-gradient(circle, rgba(255, 255, 255, .15) 1.2px, transparent 1.8px) 0 0 / 14px 14px,
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 64px),
-    linear-gradient(180deg, #0a2f93, #0b2a7a 55%, #123bb5);
-  box-shadow:
-    0 2px 0 #08205c,
-    0 4px 0 #08205c,
-    0 6px 0 #08205c,
-    0 8px 0 #07226e,
-    0 10px 0 #07226e,
-    0 12px 0 var(--v-tinta),
-    0 14px 0 var(--v-tinta),
-    0 34px 50px rgba(0, 0, 0, .5);
-}
-
-/* Brillo en el borde lejano del plano (da sensación de profundidad) */
-.vio__plano::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .22), transparent 38%);
-  pointer-events: none;
 }
 
 /* Las cuerdas (y las notas que viajan por ellas) van un poco inclinadas.
@@ -415,25 +391,46 @@
   transform-origin: center;
 }
 
-/* El envoltorio de cada cuerda no genera caja (mantiene la cadena 3D) */
-.vio-fila-cuerda { display: contents; }
-
-.vio-cuerda {
+/* Hilos: SVG con una sombra, el cuerpo y un brillo. La perspectiva del
+   plano los hace más finos al fondo y más gruesos cerca, y el JS los curva
+   cada frame para que se estiren y vibren como cuerdas de verdad. */
+.vio__hilos {
   position: absolute;
-  left: -2%;
-  right: -2%;
-  height: var(--g, 3px);
-  margin-top: calc(var(--g, 3px) / -2);
-  border-radius: 3px;
-  background: rgba(255, 255, 255, .92);
-  box-shadow: 0 1px 0 rgba(11, 42, 122, .35), 0 3px 0 rgba(7, 34, 110, .55);
-  transform-origin: center;
-  transition: background .12s, box-shadow .12s;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
-.vio-cuerda.is-activa {
-  background: #fff;
-  box-shadow: 0 0 14px 4px var(--c), 0 0 0 1px var(--c);
+.vio-cuerda path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: none;
+}
+
+.vio-cuerda__sombra {
+  stroke: rgba(4, 16, 66, .55);
+  stroke-width: calc(var(--g) * 1.5);
+  filter: blur(2.5px);
+}
+
+.vio-cuerda__cuerpo {
+  stroke: rgba(255, 255, 255, .94);
+  stroke-width: var(--g);
+  transition: stroke .12s, filter .12s;
+}
+
+.vio-cuerda__brillo {
+  stroke: #fff;
+  stroke-width: calc(var(--g) * .35);
+  opacity: .9;
+}
+
+.vio-cuerda.is-activa .vio-cuerda__cuerpo {
+  stroke: #fff;
+  filter: drop-shadow(0 0 5px var(--c)) drop-shadow(0 0 10px var(--c));
 }
 
 /* Carril de color bajo cada cuerda */
@@ -455,7 +452,7 @@
   pointer-events: none;
 }
 
-.vio-fila-cuerda:has(> .vio-cuerda.is-activa) > .vio-carril { opacity: 1; }
+.vio-carril.is-activa { opacity: 1; }
 
 .vio-etiqueta {
   position: absolute;
@@ -485,9 +482,8 @@
 
 /* ---------- Notas: círculos planos con carita (estilo osu!) ---------- */
 /* Cada nota nace en un punto de su cuerda, quieta, y crece de 0 a 100%.
-   La cabeza vive en una capa plana y el JS la proyecta cada frame sobre el
-   plano 3D, así se ve siempre como un círculo limpio, solo con tamaño de
-   perspectiva. */
+   La cabeza vive en una capa plana y el JS la proyecta cada frame sobre
+   la cuerda, con tamaño de perspectiva. */
 
 .vio__notas {
   position: absolute;
@@ -584,7 +580,7 @@
 
 .vio-nota.is-sostenida .vio-nota__timer { opacity: 1; }
 
-/* Tajo y chispas al rajar una nota (capa plana, sobre el plano 3D) */
+/* Tajo y chispas al rajar una nota */
 .vio-raja {
   position: absolute;
   z-index: 15;
@@ -632,13 +628,13 @@
   50% { transform: translateY(-12px); }
 }
 
-/* Fallada: se apaga solo la nota (no la nota entera, para no aplanar el 3D) */
+/* Fallada: se apaga solo la nota */
 .vio-nota.is-fallada .vio-nota__cuerpo {
   opacity: .35 !important;
   filter: grayscale(.8);
 }
 
-/* ---------- Juicio (capa plana, no se inclina) ---------- */
+/* ---------- Juicio ---------- */
 
 .vio__juicios {
   position: absolute;
@@ -978,7 +974,7 @@
 
 .vio-cerrar:hover {
   transform: scale(1.15) rotate(18deg);
-  filter: drop-shadow(0 0 12px rgba(255, 210, 63, .95));
+
 }
 .vio-cerrar:active { transform: scale(.92) rotate(-8deg); box-shadow: none; }
 .vio-cerrar:focus-visible { outline: 3px solid #fff; outline-offset: 3px; border-radius: 50%; }

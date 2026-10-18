@@ -1,9 +1,11 @@
 /* =========================================
    BARRA DE CARGA ANIMADA
    El progreso lo controla React.
-   Todo escala a partir de UNA variable: --h (alto de la barra).
-   Para hacerla más grande o pequeña en cualquier formato, solo
-   cambia --h (abajo, en los media queries).
+   Todo escala a partir de UNA variable: --h (alto de la barra),
+   y ahora --h es FLUIDA: crece sola con el ancho de la pantalla
+   (celular → tablet → escritorio → TV) sin saltos.
+   Para hacerla más grande o pequeña en todos los formatos, cambia
+   --h-min, --h-fluida o --h-max.
    ========================================= */
 
 @font-face {
@@ -15,11 +17,16 @@
 }
 
 .carga-portafolio {
+  /* ---- Lo único que puedes ajustar ---- */
+  --h-min: 36px;                           /* alto mínimo (celular chico) */
+  --h-fluida: calc(26px + 3.6vw);          /* crece con el ancho */
+  --h-max: 72px;                           /* alto máximo (TV / pantalla grande) */
+
   /* ---- Tamaños derivados (no hace falta tocarlos) ---- */
-  --h: clamp(40px, 9vw, 64px);           /* alto de la barra */
-  --borde: clamp(4px, calc(var(--h) * .11), 7px);
-  --char: calc(var(--h) * 1.5);           /* tamaño del personaje */
-  --texto-izq: calc(var(--char) * 1.3);   /* dónde empieza el nombre */
+  --h: clamp(var(--h-min), var(--h-fluida), var(--h-max));   /* alto de la barra */
+  --borde: clamp(3px, calc(var(--h) * .11), 7px);
+  --char: calc(var(--h) * 1.5);            /* tamaño del personaje */
+  --texto-x: calc(var(--char) * .78);      /* dónde empieza el nombre (escala con la barra) */
 
   position: relative;
   isolation: isolate;
@@ -33,12 +40,12 @@
   margin-inline: auto;
 
   border: var(--borde) solid #2b1a1a;
-  border-radius: 4px;
+  border-radius: calc(var(--h) * .06);
   background: #0879e8;
 
   box-shadow:
     0 calc(var(--borde) * .7) 0 #2b1a1a,
-    0 14px 28px rgba(0, 0, 0, .25);
+    0 calc(var(--h) * .22) calc(var(--h) * .44) rgba(0, 0, 0, .25);
 
   /* Permite que el texto se ajuste al ancho real de la barra (cqw) */
   container-type: inline-size;
@@ -56,7 +63,7 @@
       circle,
       rgba(255, 255, 255, 0.14) 1px,
       transparent 1.6px
-    ) 0 0 / 9px 9px,
+    ) 0 0 / calc(var(--h) * .14) calc(var(--h) * .14),
     linear-gradient(180deg, #168ff0, #0879e8);
 
   pointer-events: none;
@@ -67,12 +74,11 @@
 .carga-portafolio__relleno {
   position: absolute;
   inset: 0 auto 0 0;
- overflow: hidden;
+  overflow: hidden;
   width: 0;
   height: 100%;
   max-width: 100%;
 
- 
   background: transparent;
 
   transition: none;
@@ -84,7 +90,7 @@
 .carga-portafolio__relleno span {
   position: absolute;
   top: 50%;
-  left: calc(var(--texto-izq) - 50px);
+  left: var(--texto-x);
 
   width: max-content;
 
@@ -92,9 +98,9 @@
 
   color: #fff;
 
-  font-family:  'Titan' ;
+  font-family: 'Titan';
   /* Respaldo para navegadores sin container queries */
-  font-size: clamp(12px, calc(var(--h) * .45), 30px);
+  font-size: clamp(11px, calc(var(--h) * .45), 30px);
   line-height: 1.1;
   white-space: nowrap;
 
@@ -110,10 +116,10 @@
 @supports (width: 1cqw) {
   .carga-portafolio__relleno span {
     font-size: clamp(
-      10px,
+      9px,
       min(
         calc(var(--h) * .5),
-        calc((100cqw - var(--texto-izq) - 12px) / 13)
+        calc((100cqw - var(--texto-x) - 12px) / 13)
       ),
       32px
     );
@@ -152,47 +158,28 @@
 }
 
 /* =========================================
-   FORMATOS
+   AJUSTES POR FORMATO
+   (el tamaño general ya es fluido; aquí solo los casos especiales)
    ========================================= */
 
-/* Celulares pequeños (≤ 360px) */
-@media (max-width: 360px) {
+/* Celulares muy pequeños (≤ 340px) */
+@media (max-width: 340px) {
   .carga-portafolio {
-    --h: 38px;
+    --h-min: 32px;
   }
 }
 
-/* Celulares y tablets verticales */
-@media (min-width: 361px) and (max-width: 600px) {
-  .carga-portafolio {
-    --h: clamp(40px, 10vw, 50px);
-  }
-}
-
-/* Tablets */
-@media (min-width: 601px) and (max-width: 1024px) {
-  .carga-portafolio {
-    --h: 56px;
-  }
-}
-
-/* Escritorio y pantallas grandes */
-@media (min-width: 1025px) {
-  .carga-portafolio {
-    --h: 64px;
-  }
-}
-
-/* Celulares y laptops en horizontal (poca altura): barra más baja */
+/* Celulares y laptops en horizontal (poca altura): barra más baja
+   para que nunca ocupe media pantalla */
 @media (max-height: 480px) and (orientation: landscape) {
   .carga-portafolio {
-    --h: clamp(32px, 9vh, 44px);
+    --h-max: clamp(32px, 9vh, 44px);
   }
 }
 
 /* Pantallas muy grandes / TV */
 @media (min-width: 1920px) {
   .carga-portafolio {
-    --h: 72px;
+    --h-max: 84px;
   }
 }

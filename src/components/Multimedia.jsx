@@ -18,9 +18,17 @@ import luisestrella from '../assets/personaje5.png';
 import Violin from './Violin.jsx';
 import '../stylesheets/Multimedia.css';
 
-const GLOBO_Z = 70;
-const LUIS_Z = 60;
-const ARRIBA_Z = 80;
+// ---------------------------------------------------------
+// PROFUNDIDAD
+// Todo Multimedia va DEBAJO de Sobre mí. En Sobremi.jsx las capas
+// frontales (papel rasgado inferior, hoja de software y título) están en
+// z = 25, 28 y 35, así que aquí ninguna capa pasa de 14.
+// ---------------------------------------------------------
+// El globo va por DEBAJO de todo Sobre mí, incluido su fondo de papel (z = -30
+// en Sobremi.jsx). Sigue por encima del papel de Multimedia (z = -60).
+const GLOBO_Z = -40;
+const LUIS_Z = 10;
+const ARRIBA_Z = 14;
 
 const TEXTO_WEB = 'Conocimientos que complementan mi trabajo creativo';
 const TEXTO_VIDEO =
@@ -45,12 +53,23 @@ function Capa({ clase, z, depth, children }) {
   );
 }
 
+// Texto dividido en palabras para el mismo revelado de "Sobre mí"
 function Escribir({ texto }) {
+  const palabras = texto.trim().split(/\s+/);
+
   return (
     <p aria-label={texto} data-texto={texto}>
-      <span className="tw-v" aria-hidden="true" />
-      <span className="tw-caret" aria-hidden="true" />
-      <span className="tw-h" aria-hidden="true" />
+      {palabras
+        .map((palabra, i) => (
+          <span className="mm-word" key={`${palabra}-${i}`} aria-hidden="true">
+            <span className="mm-word__inner">{palabra}</span>
+          </span>
+        ))
+        .reduce((lista, palabra, i) => {
+          if (i > 0) lista.push(' ');
+          lista.push(palabra);
+          return lista;
+        }, [])}
     </p>
   );
 }
@@ -78,43 +97,25 @@ function Barras({ items }) {
 // HELPERS DE ANIMACIÓN
 // ---------------------------------------------------------
 
-function escribir(p, vel = 0.032) {
-  if (!p) return null;
-
-  const v = p.querySelector('.tw-v');
-  const h = p.querySelector('.tw-h');
-  const caret = p.querySelector('.tw-caret');
-  const texto = p.dataset.texto || '';
-  const o = { i: 0 };
-
-  v.textContent = '';
-  h.textContent = texto;
-
-  const tween = gsap.to(o, {
-    i: texto.length,
-    duration: Math.max(0.4, texto.length * vel),
-    ease: 'none',
-
-    onStart: () => gsap.set(caret, { autoAlpha: 1 }),
-
-    onUpdate: () => {
-      const n = Math.round(o.i);
-      v.textContent = texto.slice(0, n);
-      h.textContent = texto.slice(n);
+// Revelado tipográfico: igual que el texto de la tarjeta en Sobre mí
+const revelar = (p) =>
+  gsap.fromTo(
+    p.querySelectorAll('.mm-word__inner'),
+    {
+      yPercent: 115,
+      autoAlpha: 0,
+      rotationX: -35,
+      transformOrigin: '50% 100%',
     },
-
-    onComplete: () => {
-      gsap.to(caret, {
-        autoAlpha: 0,
-        duration: 0.3,
-        delay: 1.2,
-      });
-    },
-  });
-
-  p._tw = tween;
-  return tween;
-}
+    {
+      yPercent: 0,
+      autoAlpha: 1,
+      rotationX: 0,
+      duration: 0.65,
+      stagger: { each: 0.045, from: 'start' },
+      ease: 'power4.out',
+    }
+  );
 
 const gelatina = (el) =>
   gsap
@@ -153,6 +154,36 @@ const bambolear = (el, origen = '50% 50%', fuerza = 1) =>
       ease: 'elastic.out(1,.3)',
     });
 
+// Hoja colgante: cae desde arriba y se balancea como papel pegado
+// por la parte de arriba hasta quedarse quieta.
+const caerHoja = (el, lado) =>
+  gsap
+    .timeline()
+    .to(el, {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.9,
+      ease: 'bounce.out',
+    })
+    .to(
+      el,
+      {
+        rotation: 0,
+        duration: 1.8,
+        ease: 'elastic.out(1,.28)',
+      },
+      0.15
+    )
+    .to(
+      el,
+      {
+        scaleY: 1,
+        duration: 0.5,
+        ease: 'elastic.out(1,.4)',
+      },
+      0.55
+    );
+
 // ---------------------------------------------------------
 // ESCENA 3 · MULTIMEDIA
 // ---------------------------------------------------------
@@ -187,18 +218,16 @@ export default function Multimedia() {
       const radioIn = q('.mm-radio .in');
       const claveIn = q('.mm-clave .in');
       const luisIn = q('.mm-luis .in')[0];
+      const palabras = q('.mm-desc .mm-word__inner');
 
       // ---------------------------------------------------
       // ESTADO INICIAL
       // ---------------------------------------------------
 
-      textos.forEach((p) => {
-        const v = p.querySelector('.tw-v');
-        const h = p.querySelector('.tw-h');
-
-        v.textContent = reduce ? p.dataset.texto : '';
-        h.textContent = reduce ? '' : p.dataset.texto;
-      });
+      // Las palabras empiezan escondidas (con movimiento reducido se ven ya)
+      gsap.set(palabras, reduce
+        ? { autoAlpha: 1, yPercent: 0, rotationX: 0 }
+        : { autoAlpha: 0, yPercent: 115, rotationX: -35, transformOrigin: '50% 100%' });
 
       gsap.set(globoIn, {
         autoAlpha: 0,
@@ -218,9 +247,12 @@ export default function Multimedia() {
         rotation: -120,
       });
 
+      // Las hojas cuelgan de su borde superior: empiezan arriba y torcidas
       gsap.set(marcos, {
         autoAlpha: 0,
-        x: (i) => (i ? 160 : -160),
+        y: -260,
+        rotation: (i) => (i ? 16 : -16),
+        transformOrigin: '50% 0%',
       });
 
       gsap.set(tits, {
@@ -270,7 +302,8 @@ export default function Multimedia() {
 
         gsap.set(marcos, {
           autoAlpha: 1,
-          x: 0,
+          y: 0,
+          rotation: 0,
         });
 
         gsap.set(tits, {
@@ -372,6 +405,14 @@ export default function Multimedia() {
           ...suave,
           duration: 2,
         });
+
+        // Las hojas se mecen muy poco, colgadas de arriba
+        gsap.to(q('.mm-marco img'), {
+          rotation: (i) => (i ? -0.9 : 0.9),
+          transformOrigin: '50% 0%',
+          ...suave,
+          duration: 2.6,
+        });
       });
 
       // ---------------------------------------------------
@@ -422,15 +463,10 @@ export default function Multimedia() {
             },
             '-=0.4'
           )
-          .to(
-            marcos,
-            {
-              autoAlpha: 1,
-              x: 0,
-              duration: 0.8,
-            },
-            '-=0.2'
-          )
+          // Hojas: caen una tras otra y se balancean
+          .add('hojas', '-=0.2')
+          .add(caerHoja(marcos[0], -1), 'hojas')
+          .add(caerHoja(marcos[1], 1), 'hojas+=0.22')
           .to(
             tits,
             {
@@ -440,11 +476,12 @@ export default function Multimedia() {
               ease: 'back.out(2.4)',
               stagger: 0.1,
             },
-            '-=0.4'
+            'hojas+=0.7'
           )
-          .add('tipeo', '-=0.1')
-          .add(escribir(textos[0]), 'tipeo')
-          .add(escribir(textos[1]), 'tipeo')
+          // Texto: revelado palabra por palabra
+          .add('tipeo', 'hojas+=0.9')
+          .add(revelar(textos[0]), 'tipeo')
+          .add(revelar(textos[1]), 'tipeo+=0.15')
           .to(
             iconos,
             {
@@ -622,15 +659,31 @@ export default function Multimedia() {
       });
 
       // ---------------------------------------------------
-      // DESCRIPCIONES: VOLVER A ESCRIBIR
+      // DESCRIPCIONES: VOLVER A REVELAR EL TEXTO
       // ---------------------------------------------------
 
       onClick('.mm-desc .in', 'Volver a escribir el texto', (el) => {
         const p = el.querySelector('p');
+        const ws = p.querySelectorAll('.mm-word__inner');
 
-        if (p._tw && p._tw.isActive()) return;
+        if ([...ws].some((w) => gsap.isTweening(w))) return;
 
-        escribir(p);
+        revelar(p);
+      });
+
+      // ---------------------------------------------------
+      // HOJAS: SE BALANCEAN AL TOCARLAS
+      // ---------------------------------------------------
+
+      onClick('.mm-marco .in', 'Hoja', (el) => {
+        if (!libre(el)) return;
+
+        gsap
+          .timeline()
+          .set(el, { transformOrigin: '50% 0%' })
+          .to(el, { rotation: -4, duration: 0.14, ease: 'power2.out' })
+          .to(el, { rotation: 3, duration: 0.16 })
+          .to(el, { rotation: 0, duration: 1.1, ease: 'elastic.out(1,.25)' });
       });
 
       // ---------------------------------------------------
@@ -738,19 +791,19 @@ export default function Multimedia() {
       </Capa>
 
       {/* Panel WEB */}
-      <Capa clase="mm-marco mm-marco--web" z={-10} depth={12}>
+      <Capa clase="mm-marco mm-marco--web clicky" z={-10} depth={12}>
         <img src={marco} alt="" draggable="false" />
       </Capa>
 
-      <Capa clase="mm-tit mm-tit--web clicky" z={20} depth={18}>
+      <Capa clase="mm-tit mm-tit--web clicky" z={4} depth={18}>
         <img src={web} alt="Web" draggable="false" />
       </Capa>
 
-      <Capa clase="mm-desc mm-desc--web clicky" z={18} depth={16}>
+      <Capa clase="mm-desc mm-desc--web clicky" z={2} depth={16}>
         <Escribir texto={TEXTO_WEB} />
       </Capa>
 
-      <Capa clase="mm-tools mm-tools--web clicky" z={24} depth={20}>
+      <Capa clase="mm-tools mm-tools--web clicky" z={6} depth={20}>
         <img
           className="mm-tools__icons"
           src={herramientasweb}
@@ -761,24 +814,24 @@ export default function Multimedia() {
       </Capa>
 
       {/* Bafle musical */}
-      <Capa clase="mm-radio clicky" z={28} depth={24}>
+      <Capa clase="mm-radio clicky" z={8} depth={24}>
         <img src={radio} alt="Bafle: reproducir o pausar Cyberpunk" draggable="false" />
       </Capa>
 
       {/* Panel VIDEO */}
-      <Capa clase="mm-marco mm-marco--video" z={-10} depth={12}>
+      <Capa clase="mm-marco mm-marco--video clicky" z={-10} depth={12}>
         <img src={marco} alt="" draggable="false" />
       </Capa>
 
-      <Capa clase="mm-tit mm-tit--video clicky" z={20} depth={18}>
+      <Capa clase="mm-tit mm-tit--video clicky" z={4} depth={18}>
         <img src={video} alt="Video" draggable="false" />
       </Capa>
 
-      <Capa clase="mm-desc mm-desc--video clicky" z={18} depth={16}>
+      <Capa clase="mm-desc mm-desc--video clicky" z={2} depth={16}>
         <Escribir texto={TEXTO_VIDEO} />
       </Capa>
 
-      <Capa clase="mm-tools mm-tools--video clicky" z={24} depth={20}>
+      <Capa clase="mm-tools mm-tools--video clicky" z={6} depth={20}>
         <img
           className="mm-tools__icons"
           src={herramientasvideo}
@@ -789,7 +842,7 @@ export default function Multimedia() {
       </Capa>
 
       {/* Partitura: abre el minijuego del violín */}
-      <Capa clase="mm-clave clicky" z={28} depth={24}>
+      <Capa clase="mm-clave clicky" z={8} depth={24}>
         <Violin>
           <img src={clave} alt="Abrir juego del violín" draggable="false" />
         </Violin>

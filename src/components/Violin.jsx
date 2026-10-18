@@ -17,7 +17,7 @@ const POS_MAX = 0.93;
 const VENT = { perfecto: 0.08, bien: 0.14, ok: 0.22 };
 const PRE = 2.4;
 const DESFASE = 0;
-const INCL = 1;
+const INCL = 1; // inclinación de las cuerdas en grados (0 = totalmente rectas)
 const VEL_MIN = 110;
 const TOL_X = 1.55;
 const MUSICA = 0.9;
@@ -30,9 +30,15 @@ const VIDA_ACIERTO = 0.03;
 // Aciertos necesarios para desbloquear Expectations en "Mis canciones"
 const META_DESBLOQUEO = 40;
 
-// 3D
+// 3D (el plano es invisible: solo se ve la perspectiva de las cuerdas)
 const TILT = 40;
-const PERSP = 1100;
+const PERSP = 1900;
+
+// Elasticidad de las cuerdas (px en el plano)
+const ELAST_AMP = 7; // desplazamiento máximo al rozar
+const ELAST_FREQ = 4; // vibraciones por segundo
+const ELAST_AMORT = 4.2; // qué tan rápido se calma
+const NPTS = 44; // puntos con que se dibuja cada cuerda
 
 // De arriba hacia abajo: Mi, La, Re y Sol
 const CUERDAS = [
@@ -742,6 +748,7 @@ function Arco() {
 function Partida({ audio, onFin }) {
   const campoRef = useRef(null);
   const planoRef = useRef(null);
+  const svgRef = useRef(null);
   const juiciosRef = useRef(null);
   const arcoRef = useRef(null);
   const trazoRef = useRef(null);
@@ -755,10 +762,26 @@ function Partida({ audio, onFin }) {
   useEffect(() => {
     const campo = campoRef.current;
     const plano = planoRef.current;
+    const svg = svgRef.current;
     const raiz = campo.closest('.vio');
     const juicios = juiciosRef.current;
     const arco = arcoRef.current;
     const lineas = [...campo.querySelectorAll('.vio-cuerda')];
+    const carriles = [...campo.querySelectorAll('.vio-carril')];
+    const trazosCuerda = lineas.map((g) => ({
+      sombra: g.querySelector('.vio-cuerda__sombra'),
+      cuerpo: g.querySelector('.vio-cuerda__cuerpo'),
+      brillo: g.querySelector('.vio-cuerda__brillo'),
+    }));
+
+    // Estado elástico de cada cuerda
+    const vib = CUERDAS.map(() => ({
+      amp: 0,
+      x0: 0.5,
+      signo: 1,
+      t0: 0,
+      sucia: true,
+    }));
     const cv = trazoRef.current;
     const pincel = cv.getContext('2d');
 
@@ -836,6 +859,7 @@ function Partida({ audio, onFin }) {
       M.nota = Math.max(34, M.H * 0.15);
 
       campo.style.setProperty('--nota', `${M.nota}px`);
+      svg.setAttribute('viewBox', `0 0 ${M.W} ${M.H}`);
 
       const css = getComputedStyle(plano).transform;
       const m = css && css !== 'none' ? new DOMMatrix(css) : new DOMMatrix();
@@ -971,18 +995,92 @@ function Partida({ audio, onFin }) {
       });
     };
 
-    const vibrar = (ci, fuerza = 3.2) => {
-      const l = lineas[ci];
+    // Elasticidad: la cuerda se dobla hacia donde la empuja el arco y
+    // luego vibra como una cuerda pulsada (varios modos, se va calmando).
+    const vibrar = (ci, fuerza = 3.2, dir = null, uc = null) => {
+      const v = vib[ci];
 
-      if (!l) return;
+      v.amp = Math.min(1, fuerza / 4.2);
+      v.x0 =
+        uc == null
+          ? 0.2 + Math.random() * 0.6
+          : Math.min(0.9, Math.max(0.1, (uc + M.W / 2) / M.W));
+      v.signo = dir === 'arriba' ? -1 : 1;
+      v.t0 = performance.now() / 1000;
+      v.sucia = true;
+    };
 
-      gsap.killTweensOf(l);
+    // Altura de la cuerda en el punto x (0..1) para el instante dado
+    const desplaza = (ci, x, ahoraP, sostenida) => {
+      const v = vib[ci];
+      let y = 0;
 
-      gsap.fromTo(
-        l,
-        { scaleY: fuerza },
-        { scaleY: 1, duration: 0.55, ease: 'elastic.out(1,.22)' }
-      );
+      if (sostenida) {
+        // Serrucho: la cuerda tiembla mientras el arco la frota
+        const w = ahoraP * 2 * Math.PI * 38;
+
+        y =
+          Math.sin(Math.PI * x) * Math.sin(w) * 5 +
+          Math.sin(2 * Math.PI * x) * Math.sin(w * 1.7) * 2.2;
+
+        return y;
+      }
+
+      const dt = ahoraP - v.t0;
+
+      if (dt < 0) return 0;
+
+      for (let n = 1; n <= 4; n++) {
+        const amort = Math.exp(-ELAST_AMORT * (1 + (n - 1) * 0.6) * dt);
+        const fase = Math.cos(2 * Math.PI * ELAST_FREQ * n * dt);
+
+        y +=
+          (Math.sin(n * Math.PI * v.x0) * Math.sin(n * Math.PI * x)) /
+          (n * n) *
+          amort *
+          fase;
+      }
+
+      return y * v.signo * v.amp * ELAST_AMP * 2.4;
+    };
+
+    // Dibuja la cuerda (sombra + cuerpo + brillo) con su curvatura actual
+    const pintarCuerda = (ci, ahoraP, sostenida) => {
+      const v = vib[ci];
+      const dt = ahoraP - v.t0;
+      const reposo = !sostenida && (dt > 1.6 || dt < 0);
+
+      if (reposo && !v.sucia) return;
+
+      const yc = (CUERDAS[ci].y / 100) * M.H;
+      const x0 = -0.02 * M.W;
+      const ancho = 1.04 * M.W;
+      const g = CUERDAS[ci].g;
+
+      let d = '';
+      let dS = '';
+      let dB = '';
+
+      for (let k = 0; k <= NPTS; k++) {
+        const f = k / NPTS;
+        const x = x0 + ancho * f;
+        const fx = Math.min(1, Math.max(0, (x - 0) / M.W));
+        const dy = reposo ? 0 : desplaza(ci, fx, ahoraP, sostenida);
+        const cmd = k ? 'L' : 'M';
+
+        d += `${cmd}${x.toFixed(1)} ${(yc + dy).toFixed(2)} `;
+        // La sombra cae sobre el "suelo": se separa más cuanto más se levanta la cuerda
+        dS += `${cmd}${(x + 3).toFixed(1)} ${(yc + dy * 0.75 + g * 2.6 + 4).toFixed(2)} `;
+        dB += `${cmd}${x.toFixed(1)} ${(yc + dy - g * 0.32).toFixed(2)} `;
+      }
+
+      const t = trazosCuerda[ci];
+
+      t.cuerpo.setAttribute('d', d);
+      t.sombra.setAttribute('d', dS);
+      t.brillo.setAttribute('d', dB);
+
+      v.sucia = !reposo;
     };
 
     const rajaFx = (n, th) => {
@@ -1303,7 +1401,7 @@ function Partida({ audio, onFin }) {
       if (a.fric) a.fric.parar();
 
       a.n.oculta = true;
-      vibrar(ci, 1.8);
+      vibrar(ci, 1.8, null, a.n.uf * M.W - M.W / 2);
 
       if (completa) {
         S.score += 100;
@@ -1363,6 +1461,7 @@ function Partida({ audio, onFin }) {
 
       S.resaltada = ci;
       lineas.forEach((l, i) => l.classList.toggle('is-activa', i === ci));
+      carriles.forEach((c, i) => c.classList.toggle('is-activa', i === ci));
     };
 
     // Entradas de ratón y dedo
@@ -1371,7 +1470,7 @@ function Partida({ audio, onFin }) {
 
       S.ultCruce[ci] = pc / 1000;
 
-      vibrar(ci, Math.min(4.2, 2 + Math.abs(vel) / 900));
+      vibrar(ci, Math.min(4.2, 2 + Math.abs(vel) / 900), dir, uc);
 
       golpear(ci, tEvento(pc) - DESFASE, dir, uc);
     };
@@ -1671,9 +1770,11 @@ function Partida({ audio, onFin }) {
           return;
         }
 
-        lineas[ci].style.transform =
-          `scaleY(${(2.4 + Math.sin(ahoraP * 80) * 1.1).toFixed(2)})`;
       });
+
+      for (let ci = 0; ci < CUERDAS.length; ci++) {
+        pintarCuerda(ci, ahoraP, Boolean(S.activas[ci]));
+      }
 
       progRef.current.style.transform =
         `scaleX(${Math.min(1, Math.max(0, t / FIN))})`;
@@ -1782,8 +1883,6 @@ function Partida({ audio, onFin }) {
             ref={planoRef}
             style={{
               transform: `perspective(${PERSP}px) rotateX(${TILT}deg)`,
-              '--tilt': `${TILT}deg`,
-              '--sa': Math.sin((TILT * Math.PI) / 180).toFixed(4),
             }}
           >
             <div
@@ -1791,28 +1890,41 @@ function Partida({ audio, onFin }) {
               style={{ transform: `rotate(${INCL}deg)` }}
             >
               {CUERDAS.map((c) => (
-                <div className="vio-fila-cuerda" key={c.nombre}>
-                  <div
-                    className="vio-carril"
-                    style={{ top: `${c.y}%`, '--c': c.color }}
-                  />
+                <div
+                  className="vio-carril"
+                  key={`carril-${c.nombre}`}
+                  style={{ top: `${c.y}%`, '--c': c.color }}
+                />
+              ))}
 
-                  <div
+              <svg
+                className="vio__hilos"
+                ref={svgRef}
+                viewBox="0 0 800 400"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                {CUERDAS.map((c) => (
+                  <g
                     className="vio-cuerda"
-                    style={{
-                      top: `${c.y}%`,
-                      '--c': c.color,
-                      '--g': `${c.g}px`,
-                    }}
-                  />
-
-                  <div
-                    className="vio-etiqueta"
-                    style={{ top: `${c.y}%`, '--c': c.color }}
+                    key={c.nombre}
+                    style={{ '--c': c.color, '--g': `${c.g * 1.5}px` }}
                   >
-                    {c.nombre}
-                    <small>{c.tecla}</small>
-                  </div>
+                    <path className="vio-cuerda__sombra" />
+                    <path className="vio-cuerda__cuerpo" />
+                    <path className="vio-cuerda__brillo" />
+                  </g>
+                ))}
+              </svg>
+
+              {CUERDAS.map((c) => (
+                <div
+                  className="vio-etiqueta"
+                  key={`et-${c.nombre}`}
+                  style={{ top: `${c.y}%`, '--c': c.color }}
+                >
+                  {c.nombre}
+                  <small>{c.tecla}</small>
                 </div>
               ))}
             </div>

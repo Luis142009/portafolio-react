@@ -22,6 +22,15 @@
   height: var(--mm-h);
   margin-top: 0;
   background: transparent;
+  /* MULTIMEDIA VA DEBAJO DE SOBRE MÍ (que está en 60, ver más abajo) */
+  z-index: 10;
+}
+
+/* SOBRE MÍ va por encima de Multimedia.
+   Se repite aquí con la misma especificidad que el selector de arriba
+   para que ninguna regla de .frame en el CSS del Hero lo pise. */
+.camera-track .frame.frame--about {
+  z-index: 60;
 }
 
 /* Proyectos baja para quedar justo debajo del borde rasgado */
@@ -43,6 +52,9 @@
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
+  /* Todo lo de Multimedia queda encerrado en su propia capa */
+  isolation: isolate;
+  z-index: 0;
 }
 
 .mm .layer .in {
@@ -52,12 +64,12 @@
 /* ---------- Posiciones (en % de la hoja) ---------- */
 
 .mm-papel { top: calc(-150 * var(--hs)); left: calc(-260 * var(--hs)); width: 140%; }
-/* El globo va por encima de Luis (ver GLOBO_Z / LUIS_Z en Multimedia.jsx) */
-.mm-globo   { top: -7%;    left: -15%;   width: 130.5%; z-index: 70; position:absolute; }
-/* Nota, título y estrella: por encima del globo (z-index 70) */
-.mm-nota    { top: 7.5%;  left: 9.5%; width: 17.5%; z-index: 80; position: absolute; }
-.mm-titulo  { top: 11%;    left: 25%;   width: 50%; z-index: 80; position: absolute; }
-.mm-estrella{ top: 9%;    left: 75%;   width: 13.5%; z-index: 80; position: absolute; }
+/* El globo va al fondo de Multimedia (ver GLOBO_Z en Multimedia.jsx) */
+.mm-globo   { top: -7%;    left: -15%;   width: 130.5%; z-index: 0; position: absolute; }
+/* Nota, título y estrella: por encima del globo */
+.mm-nota    { top: 7.5%;  left: 9.5%; width: 17.5%; z-index: 1; position: absolute; }
+.mm-titulo  { top: 11%;    left: 25%;   width: 50%; z-index: 1; position: absolute; }
+.mm-estrella{ top: 9%;    left: 75%;   width: 13.5%; z-index: 1; position: absolute; }
 
 .mm-marco--web   { top: 30.5%; left: .8%;   width: 36%; }
 .mm-marco--video { top: 30.5%; left: 65.7%; width: 36%; }
@@ -68,7 +80,7 @@
 .mm-desc--web   { top: 42.5%; left: 3.8%;  width: 31%; }
 .mm-desc--video { top: 42.5%; left: 67.8%; width: 31%; }
 
-.mm-tools--web   { top: 50.5%; left: 3.4%;  width: 11%; }
+.mm-tools--web   { top: 51.0%; left: 2.0%;  width: 11%; }
 .mm-tools--video { top: 51.9%; left: 66.8%; width: 31.75%; }
 
 .mm-radio { top: 82.5%; left: 11.2%;  width: 17%; }
@@ -90,32 +102,10 @@
   line-height: 1.15;
 }
 
-/* ---------- Texto que se escribe (GSAP) ---------- */
-
-.tw-h {
-  visibility: hidden; /* reserva el espacio del texto que aún no se escribe */
-}
-
-.tw-caret {
-  display: inline-block;
-  position: relative;
-  width: 0;
-  opacity: 0; /* GSAP lo muestra solo mientras escribe */
-}
-
-.tw-caret::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: .12em;
-  height: .85em;
-  border-left: .1em solid var(--ink);
-  animation: mm-blink .6s steps(1) infinite;
-}
-
-@keyframes mm-blink {
-  50% { opacity: 0; }
-}
+/* ---------- Texto con revelado por palabras ----------
+   Igual que Sobre mí: las palabras quedan como spans en línea, SIN
+   inline-block ni overflow. Así la animación se ve idéntica (aparecen
+   palabra por palabra). No agregar estilos a .mm-word / .mm-word__inner. */
 
 /* ---------- Herramientas + barras de habilidad ---------- */
 

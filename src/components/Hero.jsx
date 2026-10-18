@@ -1,4 +1,3 @@
-
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -28,6 +27,23 @@ const ABOUT_EXTRA = 0.6;
 const CRUMPLE_START = 0.55;
 const CRUMPLE_END = 1.55;
 const CRUMPLE_DEBUG = false;
+
+// ---------------------------------------------------------
+// CELULAR (pantalla vertical): quita el bloque azul gigante
+// entre el Hero y "Sobre mí".
+//   MOBILE_GAP       = aire (en múltiplos del ancho) entre lo último
+//                      que se ve del Hero y el inicio de "Sobre mí".
+//   MOBILE_MIN_ABOUT = "Sobre mí" nunca empieza antes de esta fracción
+//                      de la altura de pantalla (1 = después de la
+//                      primera pantalla). Bájalo (ej. .7) si quieres
+//                      que suba aún más; súbelo si se ve muy pegado.
+// En escritorio no se usa nada de esto: queda exactamente igual.
+// ---------------------------------------------------------
+const MOBILE_GAP = 0.1;
+const MOBILE_MIN_ABOUT = 0;
+
+const isVertical = () =>
+  window.matchMedia('(max-aspect-ratio: 6/5)').matches;
 
 const TEAR_N = 30;
 const TEAR_J = 16;
@@ -68,6 +84,7 @@ export default function Hero({ revealed }) {
   // Recorrido de la cámara
   const camEnd = useRef(0);
   const camRatio = useRef(1);
+  const aboutTopRef = useRef(0);
 
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
@@ -80,15 +97,36 @@ export default function Hero({ revealed }) {
     if (!el) return;
 
     const vh = window.innerHeight;
-    const t0 = vh * (2 + ABOUT_EXTRA);
+    const vertical = isVertical();
+    const fw = Math.min(window.innerWidth, vh * (vertical ? 0.5 : 2));
+    const unit = vertical ? fw / 2 : vh;
+
+    const about = el.querySelector('.frame--about');
     const frame = el.querySelector('.frame--multimedia');
     const proyectos = el.querySelector('.frame--projects');
 
+    // Dónde empieza "Sobre mí".
+    // Escritorio: 2 pantallas (igual que antes).
+    // Celular: justo después de lo último que se ve del Hero.
+    let aboutTop = 2 * vh;
+
+    if (vertical && about) {
+      let bottom = 0;
+
+      el.querySelectorAll('.frame--home > .layer').forEach((layer) => {
+        bottom = Math.max(bottom, layer.offsetTop + layer.offsetHeight);
+      });
+
+      aboutTop = Math.max(bottom + fw * MOBILE_GAP, vh * MOBILE_MIN_ABOUT);
+      about.style.top = `${aboutTop}px`;
+    } else if (about) {
+      about.style.top = '';
+    }
+
+    aboutTopRef.current = aboutTop;
+
     if (frame) {
-      const vertical = window.matchMedia('(max-aspect-ratio: 6/5)').matches;
-      const fw = Math.min(window.innerWidth, vh * (vertical ? 0.5 : 2));
-      const unit = vertical ? fw / 2 : vh;
-      const top = 2 * vh + 2 * unit;
+      const top = aboutTop + 2 * unit;
       const h = fw * 1.048;
 
       frame.style.top = `${top}px`;
@@ -99,12 +137,12 @@ export default function Hero({ revealed }) {
       }
     }
 
-    const esVertical = window.matchMedia('(max-aspect-ratio: 6/5)').matches;
-    const fwBase = Math.min(window.innerWidth, vh * (esVertical ? 0.5 : 2));
-    const unitBase = esVertical ? fwBase / 2 : vh;
-    const s0 = esVertical ? (2 + ABOUT_EXTRA) * unitBase : 2 * vh;
+    // Misma relación scroll/cámara que antes
+    const ratio = vertical ? unit / vh : 2 / (2 + ABOUT_EXTRA);
+    const t0 = aboutTop + ABOUT_EXTRA * vh;
+    const s0 = ratio * t0;
 
-    camRatio.current = s0 / t0;
+    camRatio.current = ratio;
 
     const t1 = frame
       ? Math.max(t0, frame.offsetTop + frame.offsetHeight - vh)
@@ -116,6 +154,21 @@ export default function Hero({ revealed }) {
 
     el.style.setProperty('--mm-scroll', `${extra}px`);
     el.style.height = `${vh + s0 + extra}px`;
+  };
+
+  // Rango de scroll de la transición "hoja que se rompe".
+  // Escritorio: igual que antes. Celular: sigue a la cámara, para que
+  // termine justo cuando "Sobre mí" llega arriba.
+  const crumpleRange = () => {
+    const vh = window.innerHeight;
+
+    if (!isVertical()) {
+      return [vh * CRUMPLE_START, vh * CRUMPLE_END];
+    }
+
+    const d = aboutTopRef.current;
+
+    return [camRatio.current * d * 0.357, camRatio.current * d];
   };
 
   // ---------------------------------------------------------
@@ -559,8 +612,8 @@ export default function Hero({ revealed }) {
         defaults: { ease: 'none', immediateRender: false },
         scrollTrigger: {
           trigger: root.current,
-          start: () => `top+=${window.innerHeight * CRUMPLE_START} top`,
-          end: () => `top+=${window.innerHeight * CRUMPLE_END} top`,
+          start: () => `top+=${crumpleRange()[0]} top`,
+          end: () => `top+=${crumpleRange()[1]} top`,
           scrub: 0.8,
           markers: CRUMPLE_DEBUG,
           invalidateOnRefresh: true,

@@ -183,16 +183,25 @@ button {
    ========================================================= */
 
 .hero {
-  /* ---- ESCALA RESPONSIVE (la usan el Hero y Sobremi.css) ----
+  /* ---- ESCALA RESPONSIVE (la usan el Hero, Sobremi.css y Multimedia.css) ----
      --fw         = ancho real de cada escena (marco)
      --scene-unit = hueco entre escenas (en escritorio = 1 pantalla,
                     en celular = proporcional al ancho: sin espacio azul)
      --hdw        = ancho del marco con el que calibraste el Hero
-     --hs         = "1px de diseño" del Hero */
+     --hs         = "1px de diseño" del Hero: todo lo que antes eran px
+                    ahora se escribe calc(N * var(--hs)) y escala con el marco
+     --hr         = proporción ALTO / ANCHO del marco del Hero.
+                    Escritorio: .5 (el marco mide 100svh de alto cuando
+                    su ancho es 200svh). Celular vertical: 2.
+     --hh         = alto del marco del Hero, atado al ancho (igual que --mm-h
+                    en Multimedia). Así los % verticales y horizontales
+                    escalan juntos en CUALQUIER pantalla. */
   --fw: min(100vw, 200svh);
   --scene-unit: 100svh;
   --hdw: 1818;
   --hs: calc(var(--fw) / var(--hdw));
+  --hr: .5;
+  --hh: calc(var(--fw) * var(--hr));
 
   position: relative;
   width: 100%;
@@ -234,7 +243,7 @@ button {
 
 .l-bg {
   position: absolute;
-  top: -790px;
+  top: calc(-790 * var(--hs));
   left: -35%;
   width: 170%;
   height: 100svh;
@@ -266,8 +275,11 @@ button {
   transform-style: preserve-3d;
 }
 
+/* El Hero mide lo que mide su ancho (no 100svh): así nada se deforma
+   en pantallas que no son 2:1. */
 .frame--home {
   top: 0;
+  height: var(--hh);
   margin-top: 0;
 }
 
@@ -361,12 +373,12 @@ button {
   width: 100%;
   border-radius: 50%;
   pointer-events: auto;
-  filter: drop-shadow(0 12px 18px rgba(0,0,0,.45));
+  filter: drop-shadow(0 calc(12 * var(--hs)) calc(18 * var(--hs)) rgba(0,0,0,.45));
   transition: filter .3s;
 }
 
 .vinyl:hover {
-  filter: drop-shadow(0 16px 26px rgba(0,194,255,.6));
+  filter: drop-shadow(0 calc(16 * var(--hs)) calc(26 * var(--hs)) rgba(0,194,255,.6));
 }
 
 .vinyl:focus-visible {
@@ -390,7 +402,7 @@ button {
   }
 
   70%, 100% {
-    box-shadow: 0 0 0 calc(var(--u) * 2) rgba(243,182,74,0);
+    box-shadow: 0 0 0 calc(36 * var(--hs)) rgba(243,182,74,0);
   }
 }
 
@@ -408,7 +420,7 @@ button {
   left: calc(180 * var(--hs));
   top: calc(90 * var(--hs));
   font-family: var(--font-title);
-  font-size: max(12px, calc(45 * var(--hs))); /* 39px a ancho de diseño */
+  font-size: max(12px, calc(45 * var(--hs))); /* 45px a ancho de diseño */
   text-shadow: 0 2px 0 var(--ink);
   font-family:  'Smile' ;
 }
@@ -426,7 +438,8 @@ button {
   box-shadow: 0 6px 0 rgba(43,26,26,.55), 0 14px 30px rgba(0,0,0,.25);
   color: #fff;
   font-family: var(--font-title);
-  font-size: max(11px, calc(var(--u) * 1.45));
+  /* antes: var(--u) * 1.45  (= 26 px de diseño) */
+  font-size: max(11px, calc(26 * var(--hs)));
 }
 
 .player__btn {
@@ -525,7 +538,7 @@ button {
   width: 77%;
   position: absolute;
   z-index: 200;
-  transform: translateZ(150px);
+  transform: translateZ(calc(150 * var(--hs)));
   pointer-events: none;
 }
 
@@ -538,7 +551,7 @@ button {
   padding: 11% 6% 13% 32%;
   background: url("./assets/cinta.png") center / 100% 100% no-repeat;
   color: var(--ink);
-  filter: drop-shadow(0 8px 14px rgba(0,0,0,.25));
+  filter: drop-shadow(0 calc(8 * var(--hs)) calc(14 * var(--hs)) rgba(0,0,0,.25));
   line-height: 1.3;
 }
 
@@ -558,13 +571,13 @@ button {
   left: 10%;
   z-index: 2;
   width: 80%;
-  transform: translateZ(80px);
+  transform: translateZ(calc(80 * var(--hs)));
   color: #fff;
 }
 
 .scene-content span {
   display: block;
-  margin-bottom: 22px;
+  margin-bottom: calc(22 * var(--hs));
   color: var(--gold);
   font-family: var(--font-title);
   font-size: clamp(12px, 1.4vw, 20px);
@@ -582,7 +595,7 @@ button {
 
 .scene-content p {
   max-width: 620px;
-  margin-top: 25px;
+  margin-top: calc(25 * var(--hs));
   font-size: clamp(1rem, 2vw, 1.4rem);
 }
 
@@ -594,7 +607,7 @@ button {
   aspect-ratio: 1;
   border: 2px solid rgba(255,255,255,.3);
   border-radius: 50%;
-  transform: translateZ(-40px) rotateX(65deg);
+  transform: translateZ(calc(-40 * var(--hs))) rotateX(65deg);
   pointer-events: none;
 }
 
@@ -620,7 +633,7 @@ button {
 .scene-orbit--projects {
   top: 22%;
   right: 8%;
-  transform: translateZ(70px) rotateX(65deg) rotateZ(25deg);
+  transform: translateZ(calc(70 * var(--hs))) rotateX(65deg) rotateZ(25deg);
 }
 
 /* =========================================================
@@ -695,118 +708,60 @@ button {
 
 /* =========================================================
    RESPONSIVE (celular / pantallas verticales)
+   Aquí se quita el gran espacio azul entre secciones.
+   Debe ir DESPUÉS de las reglas base de .hero, .frame--about, etc.
    ========================================================= */
 
+/* Barra con el nombre + "Productor Multimedia" (celular).
+   El alto de la barra y la posición del rol salen de UNA misma variable
+   (--hero-bar-h), así el rol siempre queda DEBAJO de la barra y no encima. */
 @media (max-aspect-ratio: 6/5) {
-  /* Escenas más angostas y SIN el hueco de una pantalla entre ellas:
-     el hueco pasa a ser proporcional al ancho (ya no queda espacio azul).
-     El largo del scroll se ajusta a lo que realmente baja la cámara. */
+  /* --hero-bar-h vive en .hero para que la lean la barra, el rol y la estrella */
   .hero {
-    --fw: min(100vw, 50svh);
-    --scene-unit: calc(var(--fw) / 2);
-    height: calc(100svh + (2 + var(--about-extra, 0.6)) * var(--scene-unit));
-  }
-
-  .l-paper {
-    top: .5%;
-    left: -40%;
-    width: 180%;
-  }
-
-  .l-title {
-    top: 8%;
-    left: 13%;
-    width: 74%;
-  }
-
-  .l-char {
-    top: 37%;
-    left: 22%;
-    width: 56%;
-  }
-
-  .l-star--a {
-    top: 6%;
-    left: 78%;
-    width: 11%;
-  }
-
-  .l-star--b {
-    top: 45%;
-    left: 7%;
-    width: 10%;
-  }
-
-  .l-vinyl {
-    top: 63.5%;
-    left: 3%;
-    width: 38%;
+    --hero-bar-h: max(32px, calc(72 * var(--hs)));  /* alto de la barra */
   }
 
   .l-info {
-    top: 64.5%;
-    left: 42%;
-    width: 51%;
+    left: 33%;
+    width: 50%;               /* más ancha para que quepa el nombre completo */
   }
 
-  .player {
-    font-size: max(10px, calc(var(--u) * 3.1));
+  .l-info .carga-portafolio {
+    --h: var(--hero-bar-h);
+    width: calc(100% - var(--h) * .75);   /* deja sitio al personaje a la izquierda */
+    margin-left: calc(var(--h) * .95);
+    margin-right: 0;
   }
 
-  .player__name {
-    white-space: normal;
-    line-height: 1.05;
+  .l-info .carga-portafolio__relleno span {
+    font-size: min(
+      calc(var(--h) * .5),
+      calc((100cqw - var(--texto-x) - 8px) / 13)
+    );
+   margin-left: calc(var(--h) * .1 * -4);
   }
 
   .role {
-    position: static;
-    margin: .6em 0 0 1em;
-    font-size: max(10px, calc(var(--u) * 2.8));
+    top: calc(var(--hero-bar-h) + 9 * var(--hs));
+    left: calc(var(--hero-bar-h) * 2.17);
   }
 
-  .l-speech {
-    bottom: 6%;
-    left: 5%;
-    width: 90%;
-    z-index: 200;
-    transform: translateZ(150px);
-    pointer-events: none;
-  }
-
-  .speech {
-    padding: 11% 4% 13% 30%;
-  }
-
-  .speech p {
-    font-size: 5cqw;
-  }
-
-  .scene-content {
-    top: 25%;
-    left: 8%;
-    width: 84%;
-  }
-
-  .scene-content h2 {
-    font-size: clamp(2.3rem, 10vw, 4rem);
-  }
-
-  .scene-orbit {
-    top: 65%;
-    right: 8%;
-    width: 32vw;
-  }
-
-  .hero-scroll {
-    bottom: 12px;
-    font-size: 10px;
-    letter-spacing: 1.5px;
+  /* Estrella montada sobre el borde izquierdo de la barra, centrada
+     verticalmente en ella (igual que en escritorio).
+     - width : tamaño (1.5 = una vez y media el alto de la barra)
+     - left  : el .3 la mueve a izquierda/derecha  (33% + .95 del margin-left
+               de la barra = borde izquierdo de la barra)
+     - top   : el -.25 la sube/baja (centrada = -(width - 1) / 2)          */
+  .l-star--b {
+    width: calc(var(--hero-bar-h) * 1.5);
+    left: calc(33% + var(--hero-bar-h) * .3);
+    top: calc(106% - var(--hero-bar-h) * .25);
   }
 }
 
 @media (max-height: 520px) and (min-aspect-ratio: 6/5) {
   .l-speech {
-    left: 12%;
+    left: 22%;
     width: 46%;
   }
 }
