@@ -1,103 +1,160 @@
-// =========================================================
-// RETO DEL VIOLÍN  (estilo osu!, con el arco como cursor)
-//
-// Uso:
-//   <Violin>
-//     <img src={partitura} alt="" />
-//   </Violin>
-//
-// El hijo se convierte en un botón; al darle click se abre el
-// juego a pantalla completa (portal en <body>, así no le afectan
-// los transform / perspective de la escena 3D).
-//
-// Cómo se juega:
-//  - Cada línea es una cuerda (Mi, La, Re, Sol).
-//  - Las notas viajan por su cuerda hacia el círculo de la izquierda.
-//  - Pon el arco (mouse / dedo) sobre la cuerda y haz click justo
-//    cuando la nota llegue al círculo. Notas largas: mantén el click.
-//  - Teclado: 1 2 3 4 (o A S D F) = Mi La Re Sol.
-//
-// El sonido se sintetiza con Web Audio (no necesita archivos).
-// Canción: "Oda a la alegría" (Beethoven, dominio público).
-// =========================================================
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import gsap from 'gsap';
+import cancionUrl from '../assets/expectations.mp3';
+import estrella from '../assets/estrella.png';
 import '../stylesheets/Violin.css';
+import { CHART } from './violinChart.js';
 
 // ---------------------------------------------------------
-// AJUSTES
+// AJUSTES DE DIFICULTAD
 // ---------------------------------------------------------
-const BPM = 96;
-const SPB = 60 / BPM; // segundos por pulso
-const LEAD = 4 * SPB; // cuenta regresiva antes de la primera nota
-const APROX = 2.2; // segundos que tarda una nota en cruzar el campo
-const HIT_X = 0.14; // posición del círculo (fracción del ancho)
-const VENT = { perfecto: 0.075, bien: 0.13, ok: 0.19 }; // ventanas de acierto (s)
+const APROX = 1.55;
+const POS_MIN = 0.2;
+const POS_MAX = 0.93;
+const VENT = { perfecto: 0.08, bien: 0.14, ok: 0.22 };
+const PRE = 2.4;
+const DESFASE = 0;
+const INCL = 1;
+const VEL_MIN = 110;
+const TOL_X = 1.55;
+const MUSICA = 0.9;
+const MAX_FALLOS = 20;
 
-// De arriba hacia abajo, como se ven en pantalla (la más aguda arriba)
+// Aciertos necesarios para desbloquear Expectations en "Mis canciones"
+const META_DESBLOQUEO = 40;
+
+// 3D
+const TILT = 40;
+const PERSP = 1100;
+
+// De arriba hacia abajo: Mi, La, Re y Sol
 const CUERDAS = [
-  { nombre: 'Mi', midi: 76, color: '#ff7ab8', y: 17, tecla: '1' },
-  { nombre: 'La', midi: 69, color: '#ffd23f', y: 39, tecla: '2' },
-  { nombre: 'Re', midi: 62, color: '#2fd4ff', y: 61, tecla: '3' },
-  { nombre: 'Sol', midi: 55, color: '#9d8cff', y: 83, tecla: '4' },
+  { nombre: 'Mi', color: '#ffe27a', y: 17, tecla: '1', hz: 2900, g: 2, ic: '#0b2a7a' },
+  { nombre: 'La', color: '#7fe3ff', y: 39, tecla: '2', hz: 2100, g: 2.6, ic: '#0b2a7a' },
+  { nombre: 'Re', color: '#ffd23f', y: 61, tecla: '3', hz: 1500, g: 3.4, ic: '#0b2a7a' },
+  { nombre: 'Sol', color: '#4d8dff', y: 83, tecla: '4', hz: 1000, g: 4.4, ic: '#ffffff' },
 ];
 
-const TECLAS = { 1: 0, 2: 1, 3: 2, 4: 3, a: 0, s: 1, d: 2, f: 3 };
-const NOMBRES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+const TECLAS = {
+  1: 0,
+  2: 1,
+  3: 2,
+  4: 3,
+  a: 0,
+  s: 1,
+  d: 2,
+  f: 3,
+};
 
 // ---------------------------------------------------------
-// PARTITURA: Oda a la alegría (en Re mayor)
-// [nota MIDI, duración en pulsos]
+// PARTITURA
 // ---------------------------------------------------------
-const frase = (final) => [
-  [66, 1], [66, 1], [67, 1], [69, 1],
-  [69, 1], [67, 1], [66, 1], [64, 1],
-  [62, 1], [62, 1], [64, 1], [66, 1],
-  ...(final ? [[64, 1.5], [62, 0.5], [62, 2]] : [[66, 1.5], [64, 0.5], [64, 2]]),
-];
-
-const alta = (f) => f.map(([m, b]) => [m + 12, b]);
-
-const CANCION = [...frase(false), ...frase(true), ...alta(frase(false)), ...alta(frase(true))];
-
-const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
-
-// Asigna cada nota a una cuerda que pueda tocarla (hasta +9 semitonos
-// desde la cuerda al aire), alternando cuerdas cuando hay opción.
 function crearPartitura() {
-  let pulso = 0;
-  let prev = -1;
+  let prevDir = 'arriba';
+  let prevI = -1;
 
-  return CANCION.map(([midi, b], id) => {
-    const cand = CUERDAS.map((c, i) => ({ i, d: midi - c.midi })).filter(
-      (x) => x.d >= 0 && x.d <= 9
-    );
-    const opciones = cand.filter((x) => x.i !== prev);
-    const elegida = (opciones.length ? opciones : cand)[0] || { i: 0 };
+  return CHART.map(([t, i, len], id) => {
+    let dir;
 
-    const nota = {
+    if (prevI < 0) dir = 'abajo';
+    else if (i > prevI) dir = 'abajo';
+    else if (i < prevI) dir = 'arriba';
+    else dir = prevDir === 'abajo' ? 'arriba' : 'abajo';
+
+    prevDir = dir;
+    prevI = i;
+
+    return {
       id,
-      i: elegida.i,
-      midi,
-      nombre: NOMBRES[midi % 12],
-      t: LEAD + pulso * SPB,
-      len: b * SPB,
-      hold: b >= 1.5,
+      i,
+      t,
+      len,
+      hold: len > 0,
+      dir,
     };
-
-    prev = elegida.i;
-    pulso += b;
-    return nota;
   });
 }
 
-const PARTITURA = crearPartitura();
-const ULTIMA = PARTITURA[PARTITURA.length - 1];
-const FIN = ULTIMA.t + ULTIMA.len + 1.4;
+function asignarPosiciones(lista) {
+  let semilla = 20260;
+
+  const rnd = () => {
+    semilla = (semilla * 1664525 + 1013904223) >>> 0;
+    return semilla / 4294967296;
+  };
+
+  const porCuerda = [[], [], [], []];
+
+  lista.forEach((n) => {
+    const vivas = porCuerda[n.i].filter(
+      (p) => n.t - APROX < p.t + p.len + 0.5
+    );
+
+    let mejor = 0.5;
+    let mejorD = -1;
+
+    for (let k = 0; k < 14; k++) {
+      const f = POS_MIN + rnd() * (POS_MAX - POS_MIN);
+
+      const d = vivas.length
+        ? Math.min(...vivas.map((p) => Math.abs(p.f - f)))
+        : 1;
+
+      if (d > mejorD) {
+        mejorD = d;
+        mejor = f;
+      }
+
+      if (d >= 0.14) break;
+    }
+
+    n.uf = mejor;
+    porCuerda[n.i].push({
+      t: n.t,
+      len: n.len,
+      f: mejor,
+    });
+  });
+
+  return lista;
+}
+
+const PARTITURA = asignarPosiciones(crearPartitura());
+
+const ULTIMA = PARTITURA[PARTITURA.length - 1] || {
+  t: 0,
+  len: 0,
+};
+
+const FIN = ULTIMA.t + ULTIMA.len + 1.6;
 
 // ---------------------------------------------------------
-// AUDIO (Web Audio)
+// MATEMÁTICA 3D
+// ---------------------------------------------------------
+function invertir3(m) {
+  const [a, b, c, d, e, f, g, h, i] = m;
+
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const C = d * h - e * g;
+  const det = a * A + b * B + c * C || 1e-9;
+
+  return [
+    A,
+    -(b * i - c * h),
+    b * f - c * e,
+    B,
+    a * i - c * g,
+    -(a * f - c * d),
+    C,
+    -(a * h - b * g),
+    a * e - b * d,
+  ].map((v) => v / det);
+}
+
+// ---------------------------------------------------------
+// AUDIO
 // ---------------------------------------------------------
 function crearAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -108,114 +165,146 @@ function crearAudio() {
     const ac = new AC();
     const comp = ac.createDynamicsCompressor();
     const salida = ac.createGain();
+    const musica = ac.createGain();
 
-    salida.gain.value = 0.85;
+    salida.gain.value = 0.9;
+    musica.gain.value = MUSICA;
+
     salida.connect(comp);
+    musica.connect(comp);
     comp.connect(ac.destination);
 
     if (ac.resume) ac.resume();
 
-    return { ac, salida, ruido: null };
+    return {
+      ac,
+      salida,
+      musica,
+      ruido: null,
+      buffer: null,
+    };
   } catch (e) {
     return null;
   }
 }
 
-// Una nota de violín: sierras desafinadas + filtro + vibrato que tarda en entrar
-function voz(audio, freq) {
+async function cargarCancion(audio) {
+  if (!audio || audio.buffer) return;
+
+  try {
+    const res = await fetch(cancionUrl);
+    const datos = await res.arrayBuffer();
+
+    audio.buffer = await new Promise((ok, mal) => {
+      audio.ac.decodeAudioData(datos, ok, mal);
+    });
+  } catch (e) {
+    console.warn('No se pudo cargar la canción', e);
+  }
+}
+
+function bufferRuido(audio) {
+  const { ac } = audio;
+
+  if (!audio.ruido) {
+    const largo = Math.floor(ac.sampleRate * 1);
+    const buf = ac.createBuffer(1, largo, ac.sampleRate);
+    const datos = buf.getChannelData(0);
+
+    for (let k = 0; k < largo; k++) {
+      datos[k] = Math.random() * 2 - 1;
+    }
+
+    audio.ruido = buf;
+  }
+
+  return audio.ruido;
+}
+
+function swish(audio, ci, fuerza) {
   const { ac, salida } = audio;
   const t = ac.currentTime;
 
+  const src = ac.createBufferSource();
+  src.buffer = bufferRuido(audio);
+
+  const f = ac.createBiquadFilter();
+  f.type = 'bandpass';
+  f.frequency.setValueAtTime(CUERDAS[ci].hz * 0.7, t);
+  f.frequency.exponentialRampToValueAtTime(
+    CUERDAS[ci].hz * 1.5,
+    t + 0.1
+  );
+  f.Q.value = 1.4;
+
   const g = ac.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.13, t + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.09 * fuerza, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
 
-  const filtro = ac.createBiquadFilter();
-  filtro.type = 'lowpass';
-  filtro.frequency.value = Math.min(7000, freq * 7);
-  filtro.Q.value = 0.9;
+  src.connect(f);
+  f.connect(g);
+  g.connect(salida);
+
+  src.start(t);
+  src.stop(t + 0.18);
+}
+
+function friccion(audio, ci) {
+  const { ac, salida } = audio;
+  const t = ac.currentTime;
+
+  const src = ac.createBufferSource();
+  src.buffer = bufferRuido(audio);
+  src.loop = true;
+
+  const f = ac.createBiquadFilter();
+  f.type = 'bandpass';
+  f.frequency.value = CUERDAS[ci].hz;
+  f.Q.value = 2.5;
 
   const lfo = ac.createOscillator();
-  lfo.frequency.value = 5.6;
+  lfo.frequency.value = 9;
 
   const lfoG = ac.createGain();
-  lfoG.gain.setValueAtTime(0, t);
-  lfoG.gain.linearRampToValueAtTime(freq * 0.007, t + 0.5);
+  lfoG.gain.value = 0.012;
+
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.04, t + 0.05);
+
   lfo.connect(lfoG);
-
-  const osc = [0, 6, -6].map((cents) => {
-    const o = ac.createOscillator();
-    o.type = 'sawtooth';
-    o.frequency.value = freq;
-    o.detune.value = cents;
-    lfoG.connect(o.frequency);
-    o.connect(filtro);
-    o.start(t);
-    return o;
-  });
-
-  filtro.connect(g);
+  lfoG.connect(g.gain);
+  src.connect(f);
+  f.connect(g);
   g.connect(salida);
+
+  src.start(t);
   lfo.start(t);
 
   let parado = false;
 
   return {
-    parar(cuando) {
+    parar() {
       if (parado) return;
+
       parado = true;
 
-      const c = Math.max(cuando || 0, ac.currentTime);
+      const c = ac.currentTime;
 
       g.gain.cancelScheduledValues(c);
-      g.gain.setTargetAtTime(0.0001, c, 0.05);
+      g.gain.setTargetAtTime(0.0001, c, 0.04);
 
-      [...osc, lfo].forEach((o) => {
-        try {
-          o.stop(c + 0.4);
-        } catch (e) {
-          /* ya detenido */
-        }
-      });
+      try {
+        src.stop(c + 0.3);
+        lfo.stop(c + 0.3);
+      } catch (e) {
+        // Ya estaban detenidos.
+      }
     },
   };
 }
 
-// Rasguño del arco cuando se toca sin nota
-function rasguno(audio) {
-  const { ac, salida } = audio;
-
-  if (!audio.ruido) {
-    const largo = Math.floor(ac.sampleRate * 0.25);
-    const buf = ac.createBuffer(1, largo, ac.sampleRate);
-    const datos = buf.getChannelData(0);
-
-    for (let k = 0; k < largo; k++) datos[k] = Math.random() * 2 - 1;
-
-    audio.ruido = buf;
-  }
-
-  const t = ac.currentTime;
-  const src = ac.createBufferSource();
-  src.buffer = audio.ruido;
-
-  const f = ac.createBiquadFilter();
-  f.type = 'bandpass';
-  f.frequency.value = 2600;
-  f.Q.value = 1.2;
-
-  const g = ac.createGain();
-  g.gain.setValueAtTime(0.07, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-
-  src.connect(f);
-  f.connect(g);
-  g.connect(salida);
-  src.start(t);
-  src.stop(t + 0.16);
-}
-
-// Tic de la cuenta regresiva
 function tic(audio, cuando, agudo) {
   const { ac, salida } = audio;
 
@@ -230,6 +319,7 @@ function tic(audio, cuando, agudo) {
 
   o.connect(g);
   g.connect(salida);
+
   o.start(cuando);
   o.stop(cuando + 0.1);
 }
@@ -251,27 +341,30 @@ export default function Violin({ children }) {
         <span className="vio-hint" aria-hidden="true">
           ¡Tócame!
         </span>
+
         {children}
       </button>
 
       {abierto &&
-        createPortal(<Juego onCerrar={() => setAbierto(false)} />, document.body)}
+        createPortal(
+          <Juego onCerrar={() => setAbierto(false)} />,
+          document.body
+        )}
     </>
   );
 }
 
 // ---------------------------------------------------------
-// JUEGO (menú → partida → resultados)
+// JUEGO
 // ---------------------------------------------------------
 function Juego({ onCerrar }) {
   const raizRef = useRef(null);
   const audioRef = useRef(null);
 
-  const [fase, setFase] = useState('menu'); // menu | jugando | fin
+  const [fase, setFase] = useState('menu');
   const [intento, setIntento] = useState(0);
   const [res, setRes] = useState(null);
 
-  // Escape cierra · el scroll de la página queda bloqueado mientras juegas
   useEffect(() => {
     const raiz = raizRef.current;
 
@@ -288,19 +381,25 @@ function Juego({ onCerrar }) {
       window.removeEventListener('keydown', onKey);
       raiz.removeEventListener('wheel', noScroll);
 
-      if (audioRef.current && audioRef.current.ac) {
+      if (audioRef.current?.ac) {
         audioRef.current.ac.close().catch(() => {});
       }
     };
   }, [onCerrar]);
 
-  // Animación de entrada del menú
   useEffect(() => {
     if (fase !== 'menu') return undefined;
 
     const raiz = raizRef.current;
+
     const ctx = gsap.context(() => {
-      gsap.from('.vio-card', { scale: 0.7, autoAlpha: 0, duration: 0.6, ease: 'back.out(1.8)' });
+      gsap.from('.vio-card', {
+        scale: 0.7,
+        autoAlpha: 0,
+        duration: 0.6,
+        ease: 'back.out(1.8)',
+      });
+
       gsap.from('.vio-letra', {
         y: -60,
         autoAlpha: 0,
@@ -315,12 +414,16 @@ function Juego({ onCerrar }) {
     return () => ctx.revert();
   }, [fase]);
 
-  const jugar = () => {
-    // El AudioContext se crea aquí porque hay un click del usuario
+  const jugar = async () => {
     if (!audioRef.current || audioRef.current.ac.state === 'closed') {
       audioRef.current = crearAudio();
     } else if (audioRef.current.ac.resume) {
-      audioRef.current.ac.resume();
+      await audioRef.current.ac.resume();
+    }
+
+    if (audioRef.current && !audioRef.current.buffer) {
+      setFase('cargando');
+      await cargarCancion(audioRef.current);
     }
 
     setIntento((n) => n + 1);
@@ -328,18 +431,57 @@ function Juego({ onCerrar }) {
   };
 
   return (
-    <div className="vio" ref={raizRef} role="dialog" aria-modal="true" aria-label="Reto del violín">
+    <div
+      className="vio"
+      ref={raizRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Reto del violín"
+    >
       <div className="vio__aros" aria-hidden="true">
         <span className="vio-deco vio-deco--disco vio-deco--a" />
         <span className="vio-deco vio-deco--disco vio-deco--b" />
         <span className="vio-deco vio-deco--disco vio-deco--c" />
+
+        <img
+          className="vio-estrella vio-estrella--a"
+          src={estrella}
+          alt=""
+          draggable="false"
+        />
+
+        <img
+          className="vio-estrella vio-estrella--b"
+          src={estrella}
+          alt=""
+          draggable="false"
+        />
+
+        <img
+          className="vio-estrella vio-estrella--c"
+          src={estrella}
+          alt=""
+          draggable="false"
+        />
+
+        <img
+          className="vio-estrella vio-estrella--d"
+          src={estrella}
+          alt=""
+          draggable="false"
+        />
       </div>
 
-      <button type="button" className="vio-cerrar" onClick={onCerrar} aria-label="Cerrar">
+      <button
+        type="button"
+        className="vio-cerrar"
+        onClick={onCerrar}
+        aria-label="Cerrar"
+      >
         ✕
       </button>
 
-      {fase !== 'menu' && (
+      {fase === 'jugando' && (
         <Partida
           key={intento}
           audio={audioRef.current}
@@ -350,9 +492,23 @@ function Juego({ onCerrar }) {
         />
       )}
 
+      {fase === 'cargando' && (
+        <div className="vio-card">
+          <div className="vio-card__tag">Afinando el violín…</div>
+
+          <div className="vio-cargando" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+      )}
+
       {fase === 'menu' && (
         <div className="vio-card">
-          <div className="vio-card__tag">Reto de ritmo · Oda a la alegría</div>
+          <div className="vio-card__tag">
+            Reto de ritmo · Expectations
+          </div>
 
           <h2 className="vio-title" aria-label="Violín">
             {'VIOLÍN'.split('').map((l, i) => (
@@ -364,20 +520,39 @@ function Juego({ onCerrar }) {
 
           <ul className="vio-reglas">
             <li>
-              Cada línea es una <b className="vio-oro">cuerda</b>: Mi, La, Re y Sol.
+              Cada línea es una <b className="vio-oro">cuerda</b>: Mi, La,
+              Re y Sol.
             </li>
+
             <li>
-              Mueve el <b className="vio-cian">arco</b> a la cuerda de la nota y{' '}
-              <b className="vio-oro">haz click</b> cuando llegue al círculo.
+              Las notas aparecen y van creciendo. Cuando llenen su anillo,
+              córtalas cruzando la cuerda por encima con un golpe rápido de
+              arco.
             </li>
+
             <li>
-              En las notas largas <b className="vio-cian">mantén</b> el click hasta que termine.
+              La <b className="vio-oro">flecha</b> marca el sentido del arco
+              (↓ / ↑). Seguirla da más puntos.
             </li>
+
             <li>
-              Con teclado: <b className="vio-oro">1 2 3 4</b> (o A S D F) = Mi La Re Sol.
+              En las notas largas sigue serruchando la cuerda hasta que se
+              vacíe el anillo.
             </li>
+
             <li>
-              Si fallas mucho se acaba la <b className="vio-rojo">vida</b>. ¡Sube el volumen!
+              Con teclado: <b className="vio-oro">1 2 3 4</b> (o A S D F) =
+              Mi, La, Re y Sol.
+            </li>
+
+            <li>
+              Consigue <b className="vio-oro">{META_DESBLOQUEO} aciertos</b>{' '}
+              para desbloquear la canción <b className="vio-oro">Expectations</b>.
+            </li>
+
+            <li>
+              Tienes <b className="vio-rojo">{MAX_FALLOS} fallos</b> antes
+              de perder la partida.
             </li>
           </ul>
 
@@ -385,14 +560,21 @@ function Juego({ onCerrar }) {
             <button type="button" className="vio-btn-j" onClick={jugar}>
               ¡Tocar!
             </button>
-            <button type="button" className="vio-btn-j vio-btn-j--sec" onClick={onCerrar}>
+
+            <button
+              type="button"
+              className="vio-btn-j vio-btn-j--sec"
+              onClick={onCerrar}
+            >
               Salir
             </button>
           </div>
         </div>
       )}
 
-      {fase === 'fin' && res && <Resultados res={res} onOtra={jugar} onCerrar={onCerrar} />}
+      {fase === 'fin' && res && (
+        <Resultados res={res} onOtra={jugar} onCerrar={onCerrar} />
+      )}
     </div>
   );
 }
@@ -405,11 +587,24 @@ function Resultados({ res, onOtra, onCerrar }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.from('.vio-card', { y: 60, autoAlpha: 0, duration: 0.5, ease: 'power3.out' });
+      gsap.from('.vio-card', {
+        y: 60,
+        autoAlpha: 0,
+        duration: 0.5,
+        ease: 'power3.out',
+      });
+
       gsap.fromTo(
         '.vio-rank',
         { scale: 3, autoAlpha: 0, rotation: -20 },
-        { scale: 1, autoAlpha: 1, rotation: 0, duration: 0.7, delay: 0.35, ease: 'back.out(1.8)' }
+        {
+          scale: 1,
+          autoAlpha: 1,
+          rotation: 0,
+          duration: 0.7,
+          delay: 0.35,
+          ease: 'back.out(1.8)',
+        }
       );
     }, ref.current);
 
@@ -418,7 +613,11 @@ function Resultados({ res, onOtra, onCerrar }) {
 
   return (
     <div className="vio-card" ref={ref}>
-      <div className="vio-card__tag">{res.fallo ? 'Se acabó la vida…' : '¡Canción completa!'}</div>
+      <div className="vio-card__tag">
+        {res.fallo
+          ? `¡${MAX_FALLOS} fallos! Se acabaron los intentos…`
+          : '¡Canción completa!'}
+      </div>
 
       <div className="vio-fin">
         <div className="vio-fin__datos">
@@ -426,14 +625,25 @@ function Resultados({ res, onOtra, onCerrar }) {
             <span>Puntaje</span>
             <b>{res.score.toLocaleString('es-CO')}</b>
           </div>
+
           <div className="vio-fila">
             <span>Precisión</span>
             <b>{res.acc.toFixed(1)}%</b>
           </div>
+
+          <div className="vio-fila">
+            <span>Aciertos</span>
+            <b>
+              {res.aciertos}/{META_DESBLOQUEO}
+              {res.aciertos >= META_DESBLOQUEO ? ' ✓' : ''}
+            </b>
+          </div>
+
           <div className="vio-fila">
             <span>Mejor combo</span>
             <b>{res.maxCombo}x</b>
           </div>
+
           <div className="vio-fila vio-fila--juicios">
             <span className="vio-cian">Perfecto {res.cont.p}</span>
             <span className="vio-oro">Bien {res.cont.b}</span>
@@ -451,7 +661,12 @@ function Resultados({ res, onOtra, onCerrar }) {
         <button type="button" className="vio-btn-j" onClick={onOtra}>
           Otra vez
         </button>
-        <button type="button" className="vio-btn-j vio-btn-j--sec" onClick={onCerrar}>
+
+        <button
+          type="button"
+          className="vio-btn-j vio-btn-j--sec"
+          onClick={onCerrar}
+        >
           Cerrar
         </button>
       </div>
@@ -460,12 +675,80 @@ function Resultados({ res, onOtra, onCerrar }) {
 }
 
 // ---------------------------------------------------------
+// ARCO SVG
+// ---------------------------------------------------------
+function Arco() {
+  return (
+    <svg
+      className="vio-arco__img"
+      viewBox="0 0 215 715"
+      preserveAspectRatio="xMidYMid meet"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="#fff"
+        d="M169 34 Q101 330 33 626 L52 632 Q118 340 181 36 Z"
+      />
+
+      <path
+        fill="#fff"
+        d="M164 38 L167 22 Q171 15 179 17 L195 19 Q200 24 195 34 L194 46 L188 42 L186 31 L181 29 L178 42 Z"
+      />
+
+      <path
+        fill="none"
+        stroke="#fff"
+        strokeWidth="3.4"
+        strokeLinecap="round"
+        d="M192 46 Q124 340 63 624"
+      />
+
+      <path
+        fill="#fff"
+        fillRule="evenodd"
+        d="M41 616 L63 612 L66 664 Q54 672 38 668 L34 640 Z
+           M44 653 m-5.5 0 a5.5 5.5 0 1 0 11 0 a5.5 5.5 0 1 0 -11 0 Z"
+      />
+
+      <path
+        fill="#fff"
+        d="M16 683 Q14 674 24 671 L36 666 L40 676 L30 690 Q19 694 16 683 Z"
+      />
+
+      <path
+        fill="none"
+        stroke="#1a63d6"
+        strokeWidth="2"
+        d="M46 626 L47 640 M56 624 L57 640"
+      />
+    </svg>
+  );
+}
+
+function Icono({ dir }) {
+  return (
+    <svg className="vio-flecha" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d={
+          dir === 'abajo'
+            ? 'M12 4.5 V17 M6.2 11.6 L12 17.4 L17.8 11.6'
+            : 'M12 19.5 V7 M6.2 12.4 L12 6.6 L17.8 12.4'
+        }
+      />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------
 // PARTIDA
 // ---------------------------------------------------------
 function Partida({ audio, onFin }) {
   const campoRef = useRef(null);
+  const planoRef = useRef(null);
   const juiciosRef = useRef(null);
   const arcoRef = useRef(null);
+  const trazoRef = useRef(null);
   const scoreRef = useRef(null);
   const accRef = useRef(null);
   const comboRef = useRef(null);
@@ -475,69 +758,182 @@ function Partida({ audio, onFin }) {
 
   useEffect(() => {
     const campo = campoRef.current;
+    const plano = planoRef.current;
     const raiz = campo.closest('.vio');
     const juicios = juiciosRef.current;
     const arco = arcoRef.current;
     const lineas = [...campo.querySelectorAll('.vio-cuerda')];
+    const cv = trazoRef.current;
+    const pincel = cv.getContext('2d');
 
     const ac = audio ? audio.ac : null;
-    const reloj = ac ? () => ac.currentTime : () => performance.now() / 1000;
-    const t0 = reloj() + 0.4;
-    const ahora = () => reloj() - t0;
+    const reloj = ac
+      ? () => ac.currentTime
+      : () => performance.now() / 1000;
 
-    // ----- Estado -----
+    const t0 = reloj() + 0.4 + PRE;
+    const lat = ac ? ac.outputLatency || ac.baseLatency || 0 : 0;
+
+    const ahora = () => reloj() - t0 - lat;
+    const tEvento = (pms) => ahora() - (performance.now() - pms) / 1000;
+
+    // Estado del juego
     const S = {
       score: 0,
       combo: 0,
       maxCombo: 0,
-      vida: 0.7,
+      vida: 1,
       cont: { p: 0, b: 0, o: 0, f: 0 },
       juzgadas: 0,
       fin: false,
+      desbloqueada: false,
       cuenta: 0,
-      activas: {}, // notas largas que se están sosteniendo, por cuerda
-      punteros: new Map(),
+      activas: {},
       teclas: new Set(),
-      puntero: { x: window.innerWidth * 0.55, y: window.innerHeight * 0.5 },
-      bow: { x: window.innerWidth * 0.55, y: window.innerHeight * 0.5 },
+      puntero: {
+        x: window.innerWidth * 0.55,
+        y: window.innerHeight * 0.5,
+      },
+      inclina: 0,
+      ultMov: 0,
+      ultCruce: [-9, -9, -9, -9],
+      trazo: [],
+      destello: 0,
       resaltada: -1,
+      ultTick: performance.now(),
+      fuente: null,
       raf: 0,
     };
+
+    const hist = new Map();
+    const notasCapa = campo.querySelector('.vio__notas');
 
     const notas = [...campo.querySelectorAll('.vio-nota')].map((el, k) => ({
       ...PARTITURA[k],
       el,
       cuerpo: el.querySelector('.vio-nota__cuerpo'),
-      cola: el.querySelector('.vio-nota__cola'),
+      timer: el.querySelector('.vio-nota__timer circle'),
       hit: false,
       juzgada: false,
       oculta: false,
       soltada: false,
     }));
 
-    // ----- Medidas -----
-    const M = { W: 1, H: 1, nota: 40, vel: 100, hitPx: 0 };
+    const M = { W: 1, H: 1, nota: 40 };
+    const R = { left: 0, top: 0, width: 1, height: 1 };
+
+    const Hm = {
+      f: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      i: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+    };
 
     const medir = () => {
+      const r = campo.getBoundingClientRect();
+
+      R.left = r.left;
+      R.top = r.top;
+      R.width = r.width;
+      R.height = r.height;
+
       M.W = campo.clientWidth;
       M.H = campo.clientHeight;
       M.nota = Math.max(34, M.H * 0.15);
-      M.hitPx = M.W * HIT_X;
-      M.vel = (M.W * (1.04 - HIT_X)) / APROX; // px por segundo
 
       campo.style.setProperty('--nota', `${M.nota}px`);
 
-      notas.forEach((n) => {
-        if (n.cola) n.cola.style.width = `${n.len * M.vel}px`;
-      });
+      const css = getComputedStyle(plano).transform;
+      const m = css && css !== 'none' ? new DOMMatrix(css) : new DOMMatrix();
+
+      Hm.f = [
+        m.m11, m.m21, m.m41,
+        m.m12, m.m22, m.m42,
+        m.m14, m.m24, m.m44,
+      ];
+
+      Hm.i = invertir3(Hm.f);
+
+      const dpr = window.devicePixelRatio || 1;
+
+      cv.width = window.innerWidth * dpr;
+      cv.height = window.innerHeight * dpr;
+      pincel.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
     medir();
 
     const ro = new ResizeObserver(medir);
     ro.observe(campo);
+    window.addEventListener('resize', medir);
 
-    // ----- HUD -----
+    // Geometría 3D
+    const sen = Math.sin((INCL * Math.PI) / 180);
+    const cos = Math.cos((INCL * Math.PI) / 180);
+
+    const aPantalla = (px, py) => {
+      const f = Hm.f;
+      const w = f[6] * px + f[7] * py + f[8];
+
+      return {
+        x: R.left + R.width / 2 + (f[0] * px + f[1] * py + f[2]) / w,
+        y: R.top + R.height / 2 + (f[3] * px + f[4] * py + f[5]) / w,
+        k: 1 / w,
+      };
+    };
+
+    const dePantalla = (sx, sy) => {
+      const v = Hm.i;
+      const dx = sx - (R.left + R.width / 2);
+      const dy = sy - (R.top + R.height / 2);
+      const w = v[6] * dx + v[7] * dy + v[8];
+
+      return {
+        x: (v[0] * dx + v[1] * dy + v[2]) / w,
+        y: (v[3] * dx + v[4] * dy + v[5]) / w,
+      };
+    };
+
+    const aLocal = (sx, sy) => {
+      const p = dePantalla(sx, sy);
+
+      return {
+        u: p.x * cos + p.y * sen,
+        v: -p.x * sen + p.y * cos,
+      };
+    };
+
+    const deLocal = (u, v) =>
+      aPantalla(u * cos - v * sen, u * sen + v * cos);
+
+    const vCuerda = (ci) => (CUERDAS[ci].y / 100 - 0.5) * M.H;
+
+    const puntoNota = (n) => {
+      const p = deLocal(n.uf * M.W - M.W / 2, vCuerda(n.i));
+
+      return {
+        x: p.x - R.left,
+        y: p.y - R.top,
+        k: p.k,
+      };
+    };
+
+    const cuerdaCercana = (sx, sy) => {
+      const v = aLocal(sx, sy).v;
+      let mejor = 0;
+      let dist = Infinity;
+
+      for (let i = 0; i < CUERDAS.length; i++) {
+        const d = Math.abs(v - vCuerda(i));
+
+        if (d < dist) {
+          dist = d;
+          mejor = i;
+        }
+      }
+
+      return mejor;
+    };
+
+    // HUD
     const pintarHud = () => {
       scoreRef.current.textContent = String(Math.round(S.score)).padStart(7, '0');
       comboRef.current.textContent = S.combo > 1 ? `${S.combo}x` : '';
@@ -551,50 +947,238 @@ function Partida({ audio, onFin }) {
 
     pintarHud();
 
-    const popup = (texto, ci, color, chico) => {
+    const popup = (texto, n, color, chico) => {
+      const pt = puntoNota(n);
       const d = document.createElement('div');
 
       d.className = chico ? 'vio-juicio vio-juicio--chico' : 'vio-juicio';
       d.textContent = texto;
-      d.style.top = `${CUERDAS[ci].y}%`;
-      d.style.left = `${HIT_X * 100}%`;
+      d.style.top = `${pt.y}px`;
+      d.style.left = `${pt.x}px`;
       d.style.color = color;
+      d.style.setProperty('--nota', `${M.nota * pt.k}px`);
       juicios.appendChild(d);
 
       gsap.fromTo(
         d,
-        { scale: 0.4, autoAlpha: 1, xPercent: -50, yPercent: -150 },
+        { scale: 0.4, autoAlpha: 1, xPercent: -50, yPercent: -170 },
         { scale: 1.1, duration: 0.18, ease: 'back.out(3)' }
       );
-      gsap.to(d, { y: -34, autoAlpha: 0, duration: 0.5, delay: 0.35, onComplete: () => d.remove() });
+
+      gsap.to(d, {
+        y: -34,
+        autoAlpha: 0,
+        duration: 0.5,
+        delay: 0.35,
+        onComplete: () => d.remove(),
+      });
     };
 
-    const vibrar = (ci) => {
+    const vibrar = (ci, fuerza = 3.2) => {
       const l = lineas[ci];
 
       if (!l) return;
 
       gsap.killTweensOf(l);
+
       gsap.fromTo(
         l,
-        { scaleY: 3.2 },
-        { scaleY: 1, duration: 0.5, ease: 'elastic.out(1,.25)' }
+        { scaleY: fuerza },
+        { scaleY: 1, duration: 0.55, ease: 'elastic.out(1,.22)' }
       );
     };
 
-    const sumarVida = (v) => {
-      S.vida = Math.min(1, Math.max(0, S.vida + v));
+    const rajaFx = (n, th) => {
+      const c = CUERDAS[n.i].color;
+      const pt = puntoNota(n);
+      const nota = M.nota * pt.k;
+
+      const raja = document.createElement('div');
+
+      raja.className = 'vio-raja';
+      raja.style.top = `${pt.y}px`;
+      raja.style.left = `${pt.x}px`;
+      raja.style.setProperty('--c', c);
+      raja.style.setProperty('--nota', `${nota}px`);
+      juicios.appendChild(raja);
+
+      const sentido = th >= 0 ? 1 : -1;
+
+      gsap.fromTo(
+        raja,
+        {
+          xPercent: -50,
+          yPercent: -50 - 45 * sentido,
+          scaleY: 0.1,
+          rotation: th,
+          autoAlpha: 1,
+        },
+        {
+          yPercent: -50 + 25 * sentido,
+          scaleY: 1,
+          duration: 0.12,
+          ease: 'power3.out',
+        }
+      );
+
+      gsap.to(raja, {
+        autoAlpha: 0,
+        duration: 0.2,
+        delay: 0.1,
+        onComplete: () => raja.remove(),
+      });
+
+      for (let k = 0; k < 9; k++) {
+        const p = document.createElement('span');
+
+        p.className = 'vio-chispa';
+        p.style.top = `${pt.y}px`;
+        p.style.left = `${pt.x}px`;
+        p.style.background = k % 2 ? '#fff' : c;
+        p.style.setProperty('--nota', `${nota}px`);
+        juicios.appendChild(p);
+
+        gsap.fromTo(
+          p,
+          { xPercent: -50, yPercent: -50, x: 0, y: 0, scale: 1, autoAlpha: 1 },
+          {
+            x: gsap.utils.random(-nota * 1.1, nota * 1.1),
+            y: gsap.utils.random(-nota * 0.9, nota * 0.9),
+            scale: 0,
+            autoAlpha: 0,
+            duration: gsap.utils.random(0.3, 0.55),
+            ease: 'power2.out',
+            onComplete: () => p.remove(),
+          }
+        );
+      }
     };
 
-    // ----- Fin -----
+    const partirNota = (n, th) => {
+      const rad = (th * Math.PI) / 180;
+      const dx = Math.sin(rad);
+      const dy = -Math.cos(rad);
+      const nx = Math.cos(rad);
+      const ny = Math.sin(rad);
+      const L = 90;
+
+      const punto = (a, b) =>
+        `${(50 + L * (a * dx + b * nx)).toFixed(1)}% ${(50 + L * (a * dy + b * ny)).toFixed(1)}%`;
+
+      [-1, 1].forEach((lado) => {
+        const mitad = n.el.cloneNode(true);
+
+        mitad.style.visibility = 'visible';
+
+        mitad
+          .querySelectorAll('.vio-nota__aro, .vio-nota__timer')
+          .forEach((e) => e.remove());
+
+        mitad.classList.remove('is-lista', 'is-sostenida');
+
+        const cu = mitad.querySelector('.vio-nota__cuerpo');
+
+        cu.style.clipPath = `polygon(${punto(1, 0)}, ${punto(-1, 0)}, ${punto(-1, lado)}, ${punto(1, lado)})`;
+        notasCapa.appendChild(mitad);
+
+        const sep = M.nota * gsap.utils.random(0.55, 0.95);
+
+        gsap.to(cu, {
+          x: lado * nx * sep,
+          rotation: lado * gsap.utils.random(25, 75),
+          duration: 0.6,
+          ease: 'power1.out',
+        });
+
+        gsap.to(cu, {
+          y: lado * ny * sep + M.nota * gsap.utils.random(0.9, 1.5),
+          duration: 0.6,
+          ease: 'power2.in',
+        });
+
+        gsap.to(cu, {
+          autoAlpha: 0,
+          duration: 0.28,
+          delay: 0.3,
+          onComplete: () => mitad.remove(),
+        });
+      });
+    };
+
+    // Canción
+    if (audio && ac && audio.buffer) {
+      const fuente = ac.createBufferSource();
+
+      fuente.buffer = audio.buffer;
+      fuente.connect(audio.musica);
+      fuente.start(t0);
+      S.fuente = fuente;
+    }
+
+    const pararMusica = (suave) => {
+      const f = S.fuente;
+
+      if (!f) return;
+
+      S.fuente = null;
+
+      try {
+        if (suave && ac) {
+          audio.musica.gain.cancelScheduledValues(ac.currentTime);
+          audio.musica.gain.setTargetAtTime(0.0001, ac.currentTime, 0.2);
+          f.stop(ac.currentTime + 1);
+        } else {
+          f.stop();
+        }
+      } catch (e) {
+        // La fuente ya estaba detenida.
+      }
+    };
+
+    const apagonMusica = () => {
+      if (!ac || !audio.musica) return;
+
+      const c = ac.currentTime;
+
+      audio.musica.gain.cancelScheduledValues(c);
+      audio.musica.gain.setTargetAtTime(MUSICA * 0.35, c, 0.015);
+      audio.musica.gain.setTargetAtTime(MUSICA, c + 0.28, 0.12);
+    };
+
+    // Al empezar la partida se callan las demás canciones
+    // (Canciones.jsx escucha este evento y pausa el vinilo).
+    window.dispatchEvent(new CustomEvent('violin-juego'));
+
+    // Desbloqueo de Expectations: META_DESBLOQUEO aciertos.
+    // Se avisa una sola vez, al terminar la partida o al cerrar el juego.
+    const revisarDesbloqueo = () => {
+      const aciertos = S.cont.p + S.cont.b + S.cont.o;
+
+      if (S.desbloqueada || aciertos < META_DESBLOQUEO) return;
+
+      S.desbloqueada = true;
+
+      window.dispatchEvent(
+        new CustomEvent('cancion-desbloqueada', {
+          detail: { id: 'expectations' },
+        })
+      );
+    };
+
+    // Fin de partida
     const terminar = (fallo) => {
       if (S.fin) return;
 
       S.fin = true;
-      cancelAnimationFrame(S.raf);
+      revisarDesbloqueo();
 
-      Object.values(S.activas).forEach((a) => a.voz && a.voz.parar());
+      cancelAnimationFrame(S.raf);
+      pararMusica(true);
+
+      Object.values(S.activas).forEach((a) => a.fric && a.fric.parar());
       S.activas = {};
+
+      pincel.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
       const pts = 300 * S.cont.p + 100 * S.cont.b + 50 * S.cont.o;
       const acc = S.juzgadas ? (pts / (300 * S.juzgadas)) * 100 : 0;
@@ -614,6 +1198,7 @@ function Partida({ audio, onFin }) {
             maxCombo: S.maxCombo,
             acc,
             cont: S.cont,
+            aciertos: S.cont.p + S.cont.b + S.cont.o,
             rank,
             fallo,
           }),
@@ -621,22 +1206,27 @@ function Partida({ audio, onFin }) {
       );
     };
 
-    // ----- Acierto -----
-    const golpear = (ci, t) => {
+    // Acierto
+    const golpear = (ci, t, dir, uc) => {
       if (S.fin) return;
 
+      const radio = M.nota * 0.5 * TOL_X;
+
       const n = notas
-        .filter((x) => !x.juzgada && x.i === ci && Math.abs(x.t - t) <= VENT.ok)
+        .filter(
+          (x) =>
+            !x.juzgada &&
+            x.i === ci &&
+            Math.abs(x.t - t) <= VENT.ok &&
+            (uc == null ||
+              Math.abs(uc - (x.uf * M.W - M.W / 2)) <= radio)
+        )
         .sort((a, b) => Math.abs(a.t - t) - Math.abs(b.t - t))[0];
 
-      // Sin nota: rasguño del arco
-      if (!n) {
-        if (audio) rasguno(audio);
-        vibrar(ci);
-        return;
-      }
+      if (!n) return;
 
       const d = Math.abs(n.t - t);
+
       let tipo = 'o';
       let txt = 'Ok';
       let color = '#c9d6ff';
@@ -654,49 +1244,53 @@ function Partida({ audio, onFin }) {
         base = 100;
       }
 
+      const bonoDir = !dir || dir === n.dir ? 1.25 : 1;
+
       n.hit = true;
       n.juzgada = true;
+
       S.cont[tipo] += 1;
       S.juzgadas += 1;
       S.combo += 1;
       S.maxCombo = Math.max(S.maxCombo, S.combo);
-      S.score += base * (1 + Math.min(S.combo, 50) / 25);
-      sumarVida(tipo === 'p' ? 0.04 : tipo === 'b' ? 0.02 : 0.01);
+      S.score += base * bonoDir * (1 + Math.min(S.combo, 50) / 25);
 
-      popup(txt, ci, color);
-      vibrar(ci);
+      popup(txt, n, color);
 
-      gsap.fromTo(comboRef.current, { scale: 1.35 }, { scale: 1, duration: 0.2, ease: 'back.out(3)' });
+      const th = (dir === 'arriba' ? -1 : 1) * 12 + gsap.utils.random(-8, 8);
 
-      // Sonido
-      let v = null;
+      rajaFx(n, th);
 
-      if (audio) {
-        v = voz(audio, midiHz(n.midi));
+      gsap.fromTo(
+        comboRef.current,
+        { scale: 1.35 },
+        { scale: 1, duration: 0.2, ease: 'back.out(3)' }
+      );
 
-        if (!n.hold) v.parar(audio.ac.currentTime + Math.max(0.15, n.len * 0.92));
-      }
+      if (audio) swish(audio, ci, tipo === 'p' ? 1 : 0.7);
+
+      arco.classList.add('is-rajando');
+      S.destello = performance.now() + 130;
 
       if (n.hold) {
-        S.activas[ci] = { n, voz: v };
-        gsap.to(n.cuerpo, { scale: 1.12, duration: 0.15 });
+        S.activas[ci] = {
+          n,
+          fric: audio ? friccion(audio, ci) : null,
+          tecla: !dir,
+          sinContacto: 0,
+        };
+
+        n.el.classList.add('is-sostenida');
+        gsap.to(n.cuerpo, { scale: 1.1, duration: 0.15 });
       } else {
+        partirNota(n, th);
         n.oculta = true;
-        gsap.to(n.cuerpo, {
-          scale: 1.7,
-          autoAlpha: 0,
-          duration: 0.28,
-          ease: 'power2.out',
-          onComplete: () => {
-            n.el.style.visibility = 'hidden';
-          },
-        });
+        n.el.style.visibility = 'hidden';
       }
 
       pintarHud();
     };
 
-    // Nota larga terminada (o soltada)
     const cerrarLarga = (ci, completa) => {
       const a = S.activas[ci];
 
@@ -704,44 +1298,52 @@ function Partida({ audio, onFin }) {
 
       delete S.activas[ci];
 
-      if (a.voz) a.voz.parar();
+      if (a.fric) a.fric.parar();
 
       a.n.oculta = true;
+      vibrar(ci, 1.8);
 
       if (completa) {
         S.score += 100;
-        popup('¡Sostenida!', ci, '#ffd23f', true);
+
+        popup('¡Sostenida!', a.n, '#ffd23f', true);
+        rajaFx(a.n, gsap.utils.random(-14, 14));
+        partirNota(a.n, gsap.utils.random(-14, 14));
+
+        a.n.el.style.visibility = 'hidden';
         pintarHud();
       } else {
         a.n.soltada = true;
+
+        gsap.to(a.n.el, {
+          autoAlpha: 0,
+          duration: 0.25,
+          onComplete: () => {
+            a.n.el.style.visibility = 'hidden';
+          },
+        });
       }
-
-      gsap.to(a.n.el, {
-        autoAlpha: 0,
-        duration: 0.25,
-        onComplete: () => {
-          a.n.el.style.visibility = 'hidden';
-        },
-      });
     };
 
-    const liberar = (ci, t) => {
-      const a = S.activas[ci];
-
-      if (!a) return;
-
-      cerrarLarga(ci, t >= a.n.t + a.n.len - 0.18);
-    };
-
-    // ----- Fallo -----
+    // -------------------------------------------------------
+    // FALLOS: 20 FALLOS = FIN DE LA PARTIDA
+    // -------------------------------------------------------
     const fallar = (n) => {
+      if (n.juzgada || S.fin) return;
+
       n.juzgada = true;
       S.cont.f += 1;
       S.juzgadas += 1;
       S.combo = 0;
-      sumarVida(-0.12);
+
+      // Cada fallo consume el 5% de la barra.
+      // El fallo número 20 la deja vacía.
+      S.vida = Math.max(0, 1 - S.cont.f / MAX_FALLOS);
+
       n.el.classList.add('is-fallada');
-      popup('Fallo', n.i, '#ff7a7a');
+
+      popup(`Fallo ${S.cont.f}/${MAX_FALLOS}`, n, '#ff7a7a');
+      apagonMusica();
 
       gsap.fromTo(
         campo,
@@ -751,25 +1353,9 @@ function Partida({ audio, onFin }) {
 
       pintarHud();
 
-      if (S.vida <= 0) terminar(true);
-    };
-
-    // ----- Cuerda más cercana a una altura de pantalla -----
-    const cuerdaDesdeY = (y) => {
-      const r = campo.getBoundingClientRect();
-      let mejor = 0;
-      let dist = Infinity;
-
-      CUERDAS.forEach((c, i) => {
-        const d = Math.abs(r.top + (r.height * c.y) / 100 - y);
-
-        if (d < dist) {
-          dist = d;
-          mejor = i;
-        }
-      });
-
-      return mejor;
+      if (S.cont.f >= MAX_FALLOS) {
+        terminar(true);
+      }
     };
 
     const resaltar = (ci) => {
@@ -779,66 +1365,127 @@ function Partida({ audio, onFin }) {
       lineas.forEach((l, i) => l.classList.toggle('is-activa', i === ci));
     };
 
-    const arcoACuerda = (ci) => {
-      const r = campo.getBoundingClientRect();
+    // Entradas de ratón y dedo
+    const cruce = (ci, uc, pc, dir, vel) => {
+      if (Math.abs(vel) < VEL_MIN) return;
 
-      S.puntero.y = r.top + (r.height * CUERDAS[ci].y) / 100;
-      S.puntero.x = Math.min(Math.max(S.puntero.x, r.left + r.width * 0.25), r.right - 40);
+      S.ultCruce[ci] = pc / 1000;
+
+      vibrar(ci, Math.min(4.2, 2 + Math.abs(vel) / 900));
+
+      golpear(ci, tEvento(pc) - DESFASE, dir, uc);
     };
 
-    // ----- Entradas: mouse / dedo -----
+    const procesar = (id, x, y, p) => {
+      S.puntero.x = x;
+      S.puntero.y = y;
+      S.trazo.push({ x, y, p });
+
+      let h = hist.get(id);
+
+      if (!h) {
+        h = [];
+        hist.set(id, h);
+      }
+
+      const prev = h[h.length - 1];
+
+      h.push({ x, y, p });
+
+      while (h.length > 2 && p - h[0].p > 110) h.shift();
+
+      if (!prev || S.fin) return;
+
+      if (Math.hypot(x - prev.x, y - prev.y) > 1.5) {
+        S.ultMov = p / 1000;
+      }
+
+      const viejo = h[0];
+      const vel = ((y - viejo.y) / Math.max(20, p - viejo.p)) * 1000;
+
+      const l0 = aLocal(prev.x, prev.y);
+      const l1 = aLocal(x, y);
+
+      for (let ci = 0; ci < CUERDAS.length; ci++) {
+        const vc = vCuerda(ci);
+        const d0 = l0.v - vc;
+        const d1 = l1.v - vc;
+
+        if ((d0 < 0 && d1 >= 0) || (d0 > 0 && d1 <= 0)) {
+          const f = d0 / (d0 - d1);
+          const uc = l0.u + (l1.u - l0.u) * f;
+          const pc = prev.p + (p - prev.p) * f;
+
+          cruce(ci, uc, pc, d1 > d0 ? 'abajo' : 'arriba', vel);
+        }
+      }
+    };
+
     const abajo = (e) => {
       if (e.target.closest('button') || S.fin) return;
 
       e.preventDefault();
-
-      S.puntero.x = e.clientX;
-      S.puntero.y = e.clientY;
-
-      const ci = cuerdaDesdeY(e.clientY);
-
-      S.punteros.set(e.pointerId, ci);
+      hist.delete(e.pointerId);
 
       try {
         raiz.setPointerCapture(e.pointerId);
       } catch (err) {
-        /* no pasa nada */
+        // No pasa nada.
       }
 
-      arco.classList.add('is-presionado');
-      resaltar(ci);
-      golpear(ci, ahora());
+      procesar(e.pointerId, e.clientX, e.clientY, e.timeStamp);
     };
 
     const mover = (e) => {
-      S.puntero.x = e.clientX;
-      S.puntero.y = e.clientY;
-      resaltar(cuerdaDesdeY(e.clientY));
+      const lista = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+
+      if (lista && lista.length) {
+        lista.forEach((c) =>
+          procesar(e.pointerId, c.clientX, c.clientY, c.timeStamp)
+        );
+      } else {
+        procesar(e.pointerId, e.clientX, e.clientY, e.timeStamp);
+      }
     };
 
     const arriba = (e) => {
-      const ci = S.punteros.get(e.pointerId);
-
-      if (ci === undefined) return;
-
-      S.punteros.delete(e.pointerId);
-      liberar(ci, ahora());
-
-      if (!S.punteros.size && !S.teclas.size) arco.classList.remove('is-presionado');
+      hist.delete(e.pointerId);
     };
 
-    // ----- Entradas: teclado -----
+    // Entradas de teclado
     const teclaAbajo = (e) => {
-      const ci = TECLAS[e.key.toLowerCase()];
+      const k = e.key.toLowerCase();
+      const ci = TECLAS[k];
 
-      if (ci === undefined || e.repeat || S.fin || S.teclas.has(e.key.toLowerCase())) return;
+      if (ci === undefined || e.repeat || S.fin || S.teclas.has(k)) return;
 
       e.preventDefault();
-      S.teclas.add(e.key.toLowerCase());
-      arcoACuerda(ci);
-      resaltar(ci);
-      arco.classList.add('is-presionado');
-      golpear(ci, ahora());
+      S.teclas.add(k);
+
+      const t = ahora() - DESFASE;
+
+      const cand = notas
+        .filter(
+          (x) =>
+            !x.juzgada &&
+            x.i === ci &&
+            Math.abs(x.t - t) <= VENT.ok
+        )
+        .sort((a, b) => Math.abs(a.t - t) - Math.abs(b.t - t))[0];
+
+      const pt = deLocal(
+        cand ? cand.uf * M.W - M.W / 2 : 0,
+        vCuerda(ci)
+      );
+
+      S.puntero.x = pt.x;
+      S.puntero.y = pt.y;
+      S.ultCruce[ci] = performance.now() / 1000;
+
+      vibrar(ci);
+      golpear(ci, t, null, null);
+
+      if (S.activas[ci]) S.activas[ci].k = k;
     };
 
     const teclaArriba = (e) => {
@@ -848,30 +1495,49 @@ function Partida({ audio, onFin }) {
       if (ci === undefined) return;
 
       S.teclas.delete(k);
-      liberar(ci, ahora());
 
-      if (!S.punteros.size && !S.teclas.size) arco.classList.remove('is-presionado');
+      const a = S.activas[ci];
+
+      if (a && a.tecla) {
+        cerrarLarga(ci, ahora() >= a.n.t + a.n.len - 0.18);
+      }
+    };
+
+    const sostenida = (ci, ahoraP) => {
+      if (ahoraP - S.ultCruce[ci] < 0.5) return true;
+
+      const enBanda =
+        Math.abs(aLocal(S.puntero.x, S.puntero.y).v - vCuerda(ci)) <= M.H * 0.1;
+
+      return enBanda && ahoraP - S.ultMov < 0.3;
     };
 
     raiz.addEventListener('pointerdown', abajo);
     raiz.addEventListener('pointermove', mover);
     raiz.addEventListener('pointerup', arriba);
     raiz.addEventListener('pointercancel', arriba);
+    raiz.addEventListener('pointerleave', arriba);
+
     window.addEventListener('keydown', teclaAbajo);
     window.addEventListener('keyup', teclaArriba);
 
-    // ----- Cuenta regresiva -----
+    // Cuenta regresiva
     const textosCuenta = ['3', '2', '1', '¡Toca!'];
+    const paso = PRE / 4;
 
     if (audio) {
-      for (let k = 0; k < 4; k++) tic(audio, t0 + k * SPB, k === 3);
+      for (let k = 0; k < 4; k++) {
+        tic(audio, t0 - PRE + k * paso, k === 3);
+      }
     }
 
     const mostrarCuenta = (k) => {
       const el = cuentaRef.current;
 
       el.textContent = textosCuenta[k];
+
       gsap.killTweensOf(el);
+
       gsap.fromTo(
         el,
         { scale: 1.7, autoAlpha: 1 },
@@ -879,13 +1545,47 @@ function Partida({ audio, onFin }) {
       );
     };
 
-    // ----- Bucle principal -----
+    // Trazo del arco
+    const dibujarTrazo = (ahoraP) => {
+      pincel.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      const vida = 170;
+
+      while (S.trazo.length && ahoraP - S.trazo[0].p > vida) {
+        S.trazo.shift();
+      }
+
+      pincel.lineCap = 'round';
+
+      for (let k = 1; k < S.trazo.length; k++) {
+        const a = S.trazo[k - 1];
+        const b = S.trazo[k];
+
+        if (b.p - a.p > 60) continue;
+
+        const f = 1 - (ahoraP - b.p) / vida;
+
+        pincel.strokeStyle = `rgba(255,255,255,${(0.75 * f).toFixed(3)})`;
+        pincel.lineWidth = 2 + 9 * f;
+
+        pincel.beginPath();
+        pincel.moveTo(a.x, a.y);
+        pincel.lineTo(b.x, b.y);
+        pincel.stroke();
+      }
+    };
+
+    // Bucle principal
     const tick = () => {
       if (S.fin) return;
 
       const t = ahora();
+      const pms = performance.now();
+      const dtFrame = Math.min(0.1, (pms - S.ultTick) / 1000);
 
-      while (S.cuenta < 4 && t >= S.cuenta * SPB) {
+      S.ultTick = pms;
+
+      while (S.cuenta < 4 && t >= -PRE + S.cuenta * paso) {
         mostrarCuenta(S.cuenta);
         S.cuenta += 1;
       }
@@ -895,52 +1595,115 @@ function Partida({ audio, onFin }) {
         const dt = n.t - t;
         const finNota = n.t + n.len - t;
 
-        // Fallo por no tocarla
-        if (!n.juzgada && t > n.t + VENT.ok) fallar(n);
+        if (!n.juzgada && t > n.t + VENT.ok) {
+          fallar(n);
+        }
 
         if (S.fin) return;
 
-        // Nota larga que llegó a su final sosteniéndola
         const a = S.activas[n.i];
 
-        if (a && a.n === n && t >= n.t + n.len) cerrarLarga(n.i, true);
+        if (a && a.n === n && t >= n.t + n.len) {
+          cerrarLarga(n.i, true);
+        }
 
         if (n.oculta) continue;
 
         const visible = dt < APROX + 0.1 && finNota > -0.9;
 
         if (!visible) {
-          if (n.el.style.visibility !== 'hidden') n.el.style.visibility = 'hidden';
+          if (n.el.style.visibility !== 'hidden') {
+            n.el.style.visibility = 'hidden';
+          }
+
           continue;
         }
 
-        if (n.el.style.visibility !== 'visible') n.el.style.visibility = 'visible';
-
-        let cabeza = M.hitPx + dt * M.vel;
-
-        // Mientras la sostienes, la cabeza se queda en el círculo y la cola se acorta
-        if (n.hit && n.hold && !n.soltada && t > n.t) {
-          cabeza = M.hitPx;
-
-          if (n.cola) n.cola.style.width = `${Math.max(0, finNota * M.vel)}px`;
+        if (n.el.style.visibility !== 'visible') {
+          n.el.style.visibility = 'visible';
         }
 
-        n.el.style.transform = `translate3d(${cabeza - M.nota / 2}px,0,0)`;
+        const pc = deLocal(
+          n.uf * M.W - M.W / 2,
+          vCuerda(n.i)
+        );
+
+        n.el.style.transform =
+          `translate3d(${(pc.x - R.left).toFixed(1)}px,` +
+          `${(pc.y - R.top).toFixed(1)}px,0) scale(${pc.k.toFixed(3)})`;
+
+        if (!n.hit) {
+          const prog = Math.min(
+            1,
+            Math.max(0, (t - (n.t - APROX)) / APROX)
+          );
+
+          n.cuerpo.style.transform = `scale(${prog.toFixed(3)})`;
+          n.cuerpo.style.opacity = Math.min(1, prog * 5).toFixed(3);
+
+          n.el.classList.toggle(
+            'is-lista',
+            !n.juzgada && Math.abs(dt) <= VENT.ok
+          );
+        } else if (n.hold && !n.soltada && n.timer) {
+          const r = Math.max(0, Math.min(1, finNota / n.len));
+
+          n.timer.style.strokeDashoffset = (100 * (1 - r)).toFixed(1);
+        }
       }
 
-      // Barra de progreso
-      progRef.current.style.transform = `scaleX(${Math.min(1, Math.max(0, t / FIN))})`;
+      const ahoraP = pms / 1000;
 
-      // Arco: sigue al puntero con suavidad
-      S.bow.x += (S.puntero.x - S.bow.x) * 0.35;
-      S.bow.y += (S.puntero.y - S.bow.y) * 0.35;
+      Object.keys(S.activas).forEach((key) => {
+        const ci = Number(key);
+        const a = S.activas[ci];
 
-      const tocando = arco.classList.contains('is-presionado');
-      const vaiven = tocando ? Math.sin(t * 22) * 7 : 0;
+        if (!a) return;
 
-      arco.style.transform = `translate3d(${S.bow.x + vaiven}px,${S.bow.y}px,0) translate(-50%,-50%) rotate(-33deg)`;
+        const vivo = a.tecla
+          ? !a.k || S.teclas.has(a.k)
+          : sostenida(ci, ahoraP);
 
-      // Fin de la canción
+        a.sinContacto = vivo ? 0 : a.sinContacto + dtFrame;
+
+        if (a.sinContacto > 0.3) {
+          cerrarLarga(ci, t >= a.n.t + a.n.len - 0.18);
+          return;
+        }
+
+        lineas[ci].style.transform =
+          `scaleY(${(2.4 + Math.sin(ahoraP * 80) * 1.1).toFixed(2)})`;
+      });
+
+      progRef.current.style.transform =
+        `scaleX(${Math.min(1, Math.max(0, t / FIN))})`;
+
+      resaltar(cuerdaCercana(S.puntero.x, S.puntero.y));
+
+      const sostiene = Object.keys(S.activas).length > 0;
+      const vaiven =
+        S.teclas.size && sostiene ? Math.sin(ahoraP * 24) * 14 : 0;
+
+      const vx =
+        S.trazo.length > 1
+          ? S.trazo[S.trazo.length - 1].x - S.trazo[0].x
+          : 0;
+
+      S.inclina +=
+        (Math.max(-9, Math.min(9, vx * 0.05)) - S.inclina) * 0.2;
+
+      arco.style.transform =
+        `translate3d(${S.puntero.x}px,${S.puntero.y + vaiven}px,0) ` +
+        `translate(-50%,-50%) rotate(${S.inclina.toFixed(2)}deg)`;
+
+      arco.classList.toggle('is-presionado', sostiene);
+
+      if (pms > S.destello) {
+        arco.classList.remove('is-rajando');
+      }
+
+      dibujarTrazo(pms);
+
       if (t > FIN) {
         terminar(false);
         return;
@@ -951,24 +1714,36 @@ function Partida({ audio, onFin }) {
 
     S.raf = requestAnimationFrame(tick);
 
-    // ----- Limpieza -----
+    // Limpieza
     return () => {
       S.fin = true;
+
+      // Si se cierra el juego a mitad de partida con 40+ aciertos,
+      // la canción también se desbloquea.
+      revisarDesbloqueo();
+
       cancelAnimationFrame(S.raf);
       ro.disconnect();
+
+      window.removeEventListener('resize', medir);
 
       raiz.removeEventListener('pointerdown', abajo);
       raiz.removeEventListener('pointermove', mover);
       raiz.removeEventListener('pointerup', arriba);
       raiz.removeEventListener('pointercancel', arriba);
+      raiz.removeEventListener('pointerleave', arriba);
+
       window.removeEventListener('keydown', teclaAbajo);
       window.removeEventListener('keyup', teclaArriba);
 
-      Object.values(S.activas).forEach((a) => a.voz && a.voz.parar());
+      pararMusica(false);
+
+      Object.values(S.activas).forEach((a) => a.fric && a.fric.parar());
 
       gsap.killTweensOf(campo.querySelectorAll('*'));
       gsap.killTweensOf([campo, cuentaRef.current, comboRef.current]);
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -979,6 +1754,7 @@ function Partida({ audio, onFin }) {
           <div className="vio__vida">
             <div className="vio__vida-fill" ref={vidaRef} />
           </div>
+
           <div className="vio__prog">
             <div className="vio__prog-fill" ref={progRef} />
           </div>
@@ -988,6 +1764,7 @@ function Partida({ audio, onFin }) {
           <div className="vio__score" ref={scoreRef}>
             0000000
           </div>
+
           <div className="vio__acc" ref={accRef}>
             100.0%
           </div>
@@ -999,31 +1776,72 @@ function Partida({ audio, onFin }) {
 
       <div className="vio__zona">
         <div className="vio__campo" ref={campoRef}>
-          <div className="vio__cuerdas">
-            {CUERDAS.map((c) => (
-              <div key={c.nombre}>
-                <div className="vio-cuerda" style={{ top: `${c.y}%`, '--c': c.color }} />
+          <div
+            className="vio__plano"
+            ref={planoRef}
+            style={{
+              transform: `perspective(${PERSP}px) rotateX(${TILT}deg)`,
+              '--tilt': `${TILT}deg`,
+              '--sa': Math.sin((TILT * Math.PI) / 180).toFixed(4),
+            }}
+          >
+            <div
+              className="vio__cuerdas"
+              style={{ transform: `rotate(${INCL}deg)` }}
+            >
+              {CUERDAS.map((c) => (
+                <div className="vio-fila-cuerda" key={c.nombre}>
+                  <div
+                    className="vio-carril"
+                    style={{ top: `${c.y}%`, '--c': c.color }}
+                  />
 
-                <div className="vio-etiqueta" style={{ top: `${c.y}%`, '--c': c.color }}>
-                  {c.nombre}
-                  <small>{c.tecla}</small>
+                  <div
+                    className="vio-cuerda"
+                    style={{
+                      top: `${c.y}%`,
+                      '--c': c.color,
+                      '--g': `${c.g}px`,
+                    }}
+                  />
+
+                  <div
+                    className="vio-etiqueta"
+                    style={{ top: `${c.y}%`, '--c': c.color }}
+                  >
+                    {c.nombre}
+                    <small>{c.tecla}</small>
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <div
-                  className="vio-diana"
-                  style={{ top: `${c.y}%`, left: `${HIT_X * 100}%`, '--c': c.color }}
-                />
-              </div>
-            ))}
-
+          <div className="vio__notas">
             {PARTITURA.map((n) => (
               <div
                 key={n.id}
                 className={`vio-nota${n.hold ? ' vio-nota--larga' : ''}`}
-                style={{ top: `${CUERDAS[n.i].y}%`, '--c': CUERDAS[n.i].color }}
+                style={{
+                  '--c': CUERDAS[n.i].color,
+                  '--ic': CUERDAS[n.i].ic,
+                }}
               >
-                {n.hold && <div className="vio-nota__cola" />}
-                <div className="vio-nota__cuerpo">{n.nombre}</div>
+                <span className="vio-nota__aro" />
+
+                {n.hold && (
+                  <svg
+                    className="vio-nota__timer"
+                    viewBox="0 0 100 100"
+                    aria-hidden="true"
+                  >
+                    <circle cx="50" cy="50" r="47" pathLength="100" />
+                  </svg>
+                )}
+
+                <div className="vio-nota__cuerpo">
+                  <Icono dir={n.dir} />
+                </div>
               </div>
             ))}
           </div>
@@ -1032,10 +1850,10 @@ function Partida({ audio, onFin }) {
         </div>
       </div>
 
-      {/* El arco: es el cursor */}
+      <canvas className="vio__trazo" ref={trazoRef} aria-hidden="true" />
+
       <div className="vio-arco" ref={arcoRef} aria-hidden="true">
-        <span className="vio-arco__talon" />
-        <span className="vio-arco__punta" />
+        <Arco />
       </div>
     </>
   );

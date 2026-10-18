@@ -1,23 +1,21 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import './canciones.css';
 
-// ─────────────────────────────────────────────────────────────
-// ⚠️ Ajusta estas 2 rutas a donde tengas tus imágenes (PNG con fondo transparente)
-// ─────────────────────────────────────────────────────────────
-import personaje from '../assets/personaje3.png'; // el muñeco (imagen 2)
-import globo from '../assets/globo.png'; // el globo de diálogo vacío (imagen 3)
-import stared from '../assets/starblue.png'; // estrella roja del botón de cerrar
+import personaje from '../assets/personaje3.png';
+import globo from '../assets/globo.png';
+import stared from '../assets/starblue.png';
 
-// ─────────────────────────────────────────────────────────────
-// Edita aquí tus canciones. El orden de esta lista es FIJO:
-// Laferte siempre es la 02, aunque se desbloquee antes que Danse.
-//  · id:         único, sin espacios
-//  · portada:    opcional → import portada from '../assets/portada.png'
-//  · significado: lo que significa la canción para ti
-//  · pista:      se muestra mientras la canción está bloqueada
-//  · nota:       lo que dice el personaje en la pantalla de "canción desbloqueada"
-// ─────────────────────────────────────────────────────────────
+import monLaferteAudio from '../assets/laferte.mp3';
+import boyDontCryAudio from '../assets/cry.mp3';
+import expectationsAudio from '../assets/expectations.mp3';
+import cancion06Audio from '../assets/quien.mp3';
+import cyberpunkAudio from '../assets/Cyberpunk.mp3';
+
+// ============================================================
+// LISTA DE CANCIONES
+// ============================================================
+
 const CANCIONES = [
   {
     id: 'danse',
@@ -25,48 +23,117 @@ const CANCIONES = [
     artista: 'Artista aquí',
     anio: '2024',
     etiqueta: 'La primera',
-    reproducible: true, // suena con la música de fondo del portafolio
+    reproducible: true,
+    tipoReproduccion: 'fondo',
+    audioSrc: null,
     portada: null,
-    significado:
-      'Escribe aquí qué significa esta canción para ti: cuándo la escuchaste por primera vez, qué te hace sentir, con quién la relacionas.',
+    significado: 'Escribe aquí qué significa esta canción para ti.',
     pista: 'Se desbloquea al conseguir 30 aciertos en el piano.',
-    nota: '¡Eso! 30 aciertos en el piano y ya suena Danse. Esta es la primera canción de mi lista, escríbela aquí como quieras que la cuente el personaje.',
+    nota: '¡Eso! 30 aciertos en el piano y ya suena Danse. Esta es la primera canción de mi lista.',
   },
   {
     id: 'laferte',
-    titulo: 'Mon Laferte', // pon aquí el título real de la canción
+    titulo: 'Mon Laferte',
     artista: 'Mon Laferte',
     anio: '2024',
     etiqueta: 'Para trabajar',
+    reproducible: true,
+    tipoReproduccion: 'archivo',
+    audioSrc: monLaferteAudio,
     portada: null,
     significado: 'Cuéntales por qué esta canción te acompaña cuando trabajas.',
     pista: 'Haz clic en el vinilo para descubrirla…',
-    nota: 'Encontraste el vinilo. Esta es la que me acompaña cuando trabajo, cambia este texto por lo que quieras decir.',
+    nota: 'Encontraste el vinilo. Esta es la que me acompaña cuando trabajo.',
   },
   {
     id: 'cry',
-    titulo: 'Boy dont Cry', // pon aquí el título real
+    titulo: 'Boy dont Cry',
     artista: 'Artista aquí',
     anio: '2024',
     etiqueta: 'Reto de ritmo',
+    reproducible: true,
+    tipoReproduccion: 'archivo',
+    audioSrc: boyDontCryAudio,
     portada: null,
     significado: 'Cuéntales qué significa esta canción para ti.',
     pista: 'Toca la nota musical en Sobre mí y consigue 50 aciertos.',
-    nota: 'Reto de ritmo superado, 50 aciertos. Esta canción tiene su historia, cuéntala aquí con tus palabras.',
+    nota: 'Reto de ritmo superado, 50 aciertos. Esta canción tiene su historia.',
+  },
+  {
+    id: 'expectations',
+    titulo: 'Expectations',
+    artista: 'Artista aquí',
+    anio: '2024',
+    etiqueta: 'Reto del violín',
+    reproducible: true,
+    tipoReproduccion: 'archivo',
+    audioSrc: expectationsAudio,
+    portada: null,
+    significado: 'Escribe aquí qué significa esta canción para ti.',
+    pista: 'Toca la partitura en Multimedia y consigue 40 aciertos en el violín.',
+    nota: '¡40 notas en el violín! Expectations desbloqueada.',
+  },
+  {
+    id: 'cyberpunk',
+    titulo: 'Cyberpunk',
+    artista: 'Cyberpunk',
+    anio: '2026',
+    etiqueta: 'Modo nocturno',
+    reproducible: true,
+    tipoReproduccion: 'archivo',
+    audioSrc: cyberpunkAudio,
+    portada: null,
+    significado: 'Una canción para entrar en otro mundo y disfrutar de su energía.',
+    pista: 'Haz clic en el bafle de Multimedia para descubrirla.',
+    nota: '¡Cyberpunk desbloqueado! Entra en el modo nocturno y disfruta de esta canción.',
+  },
+  {
+    id: 'song6',
+    titulo: 'Canción 06',
+    artista: 'Artista aquí',
+    anio: '2024',
+    etiqueta: 'La última',
+    reproducible: true,
+    tipoReproduccion: 'archivo',
+    audioSrc: cancion06Audio,
+    portada: null,
+    significado: 'Escribe aquí qué significa esta canción para ti.',
+    pista: 'Esta canción todavía está bloqueada.',
+    nota: '¡Llegaste a la última canción!',
   },
 ];
 
-// Canciones que se desbloquean solas con eventos de la página
-const EVENTOS = {
-  'musica-fondo': 'danse', // el piano la libera al llegar a 30 aciertos
-};
-
-// Notas flotando de fondo en la pantalla de desbloqueo
 const NOTAS_FONDO = Array.from({ length: 16 }, (_, i) => ({
   simbolo: i % 3 === 0 ? '♫' : '♪',
   left: (i * 37) % 100,
   size: 22 + ((i * 13) % 34),
 }));
+
+// ============================================================
+// EVENTOS
+// ============================================================
+
+function emitirEstadoVinilo(sonando, id) {
+  if (typeof window === 'undefined') return;
+
+  window.dispatchEvent(
+    new CustomEvent('vinilo-estado', {
+      detail: { sonando: Boolean(sonando), id },
+    }),
+  );
+}
+
+function emitirControlDanse(sonando) {
+  window.dispatchEvent(
+    new CustomEvent('musica-control', {
+      detail: { sonando: Boolean(sonando) },
+    }),
+  );
+}
+
+// ============================================================
+// CANDADO
+// ============================================================
 
 function Candado() {
   return (
@@ -76,8 +143,16 @@ function Candado() {
   );
 }
 
+// ============================================================
+// DISCO
+// ============================================================
+
 function Disco({ portada, bloqueada, titulo, onClick, sonando }) {
-  const clase = `cn-disc${bloqueada ? ' is-locked' : ' is-spinning'}`;
+  const estado = bloqueada
+    ? 'is-locked'
+    : sonando
+      ? 'is-spinning'
+      : 'is-paused';
 
   const contenido =
     portada && !bloqueada ? (
@@ -86,67 +161,100 @@ function Disco({ portada, bloqueada, titulo, onClick, sonando }) {
       <span className="cn-disc__label">{bloqueada ? '?' : '♪'}</span>
     );
 
-  if (onClick) {
+  if (onClick && !bloqueada) {
     return (
       <button
         type="button"
-        className={`${clase} cn-disc--btn`}
+        className={`cn-disc ${estado} cn-disc--btn`}
         onClick={onClick}
-        aria-label={sonando ? 'Pausar canción' : 'Reproducir canción'}
+        aria-label={`${sonando ? 'Pausar' : 'Reproducir'} ${titulo}`}
+        aria-pressed={sonando}
+        title={sonando ? 'Pausar canción' : 'Reproducir canción'}
       >
         {contenido}
       </button>
     );
   }
 
-  return <div className={clase}>{contenido}</div>;
+  return (
+    <div className={`cn-disc ${estado}`} aria-label={bloqueada ? 'Canción bloqueada' : titulo}>
+      {contenido}
+    </div>
+  );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Pantalla "mundo nuevo" que aparece al desbloquear una canción
-// ─────────────────────────────────────────────────────────────
+// ============================================================
+// PANTALLA ANIMADA DE CANCIÓN DESBLOQUEADA
+// ============================================================
+
 function MundoCancion({ cancion, numero, onCerrar }) {
   const raiz = useRef(null);
-  const linea = useRef(null);
   const botonRef = useRef(null);
   const cerrando = useRef(false);
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline();
-      linea.current = tl;
-
-      // 1 · el mundo se abre como un círculo desde el centro
-      tl.fromTo(
-        '.cn-world__bg',
-        { clipPath: 'circle(0% at 50% 55%)' },
-        { clipPath: 'circle(150% at 50% 55%)', duration: 0.95, ease: 'power3.inOut' },
-      )
-        // 2 · cartel de canción desbloqueada
+      gsap.timeline()
+        .fromTo(
+          '.cn-world__bg',
+          { clipPath: 'circle(0% at 50% 55%)' },
+          {
+            clipPath: 'circle(150% at 50% 55%)',
+            duration: 0.95,
+            ease: 'power3.inOut',
+          },
+        )
         .from(
           '.cn-world__banner',
-          { y: -90, rotation: -6, opacity: 0, duration: 0.6, ease: 'back.out(2)' },
+          {
+            y: -90,
+            rotation: -6,
+            opacity: 0,
+            duration: 0.6,
+            ease: 'back.out(2)',
+          },
           '-=0.35',
         )
-        // 3 · el personaje entra rebotando
         .from(
           '.cn-world__hero',
-          { yPercent: 110, rotation: 12, duration: 1, ease: 'elastic.out(1, 0.6)' },
+          {
+            yPercent: 110,
+            rotation: 12,
+            duration: 1,
+            ease: 'elastic.out(1, 0.6)',
+          },
           '-=0.2',
         )
-        // 4 · el globo sale desde la boca del personaje
         .fromTo(
           '.cn-world__bubble',
           { scale: 0, rotation: -5, opacity: 0 },
-          { scale: 1, rotation: 0, opacity: 1, duration: 0.6, ease: 'back.out(1.8)' },
+          {
+            scale: 1,
+            rotation: 0,
+            opacity: 1,
+            duration: 0.6,
+            ease: 'back.out(1.8)',
+          },
           '-=0.35',
         )
-        // 5 · el texto aparece palabra por palabra
-        .from('.cn-w', { y: 14, opacity: 0, stagger: 0.07, duration: 0.25, ease: 'power2.out' })
-        // 6 · botón para continuar
-        .from('.cn-world__go', { scale: 0, rotation: 8, duration: 0.45, ease: 'back.out(2.2)' }, '-=0.1');
+        .from('.cn-w', {
+          y: 14,
+          opacity: 0,
+          stagger: 0.07,
+          duration: 0.25,
+          ease: 'power2.out',
+        })
+        .from(
+          '.cn-world__go',
+          {
+            scale: 0,
+            rotation: 8,
+            duration: 0.45,
+            ease: 'back.out(2.2)',
+          },
+          '-=0.1',
+        );
 
-      // El personaje "respira" todo el rato
       gsap.to('.cn-world__hero-inner', {
         y: -8,
         rotation: 1.6,
@@ -156,11 +264,14 @@ function MundoCancion({ cancion, numero, onCerrar }) {
         ease: 'sine.inOut',
       });
 
-      // Notas musicales subiendo por el fondo
       gsap.utils.toArray('.cn-world__note').forEach((el, i) => {
         gsap.fromTo(
           el,
-          { y: '8vh', opacity: 0, rotation: gsap.utils.random(-25, 25) },
+          {
+            y: '8vh',
+            opacity: 0,
+            rotation: gsap.utils.random(-25, 25),
+          },
           {
             y: '-115vh',
             opacity: 0.55,
@@ -169,12 +280,10 @@ function MundoCancion({ cancion, numero, onCerrar }) {
             delay: 0.6 + i * 0.35,
             repeat: -1,
             ease: 'none',
-            keyframes: undefined,
           },
         );
       });
 
-      // Pequeño temblor de "papel" en el globo
       gsap.to('.cn-world__bubble-img', {
         rotation: 0.6,
         duration: 2.4,
@@ -188,16 +297,16 @@ function MundoCancion({ cancion, numero, onCerrar }) {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => botonRef.current?.focus(), 1800);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => botonRef.current?.focus(), 1800);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Clic en cualquier parte de la pantalla: se desvanece y se quita
   const cerrar = (e) => {
     e?.stopPropagation();
+
     if (cerrando.current) return;
     cerrando.current = true;
-    linea.current?.pause();
+
     gsap.to(raiz.current, {
       opacity: 0,
       scale: 1.04,
@@ -218,11 +327,11 @@ function MundoCancion({ cancion, numero, onCerrar }) {
       aria-label={`Canción desbloqueada: ${cancion.titulo}`}
       onClick={cerrar}
     >
-      {/* Fondo: azul + papel + puntos de cómic */}
       <div className="cn-world__bg" aria-hidden="true">
         <div className="cn-world__dots" />
         <div className="cn-world__paper" />
         <div className="cn-world__vignette" />
+
         {NOTAS_FONDO.map((n, i) => (
           <span
             key={i}
@@ -235,7 +344,8 @@ function MundoCancion({ cancion, numero, onCerrar }) {
       </div>
 
       <div className="cn-world__banner">
-        <span aria-hidden="true">♪ </span>¡Canción desbloqueada!
+        <span aria-hidden="true">♪ </span>
+        ¡Canción desbloqueada!
         <strong>
           {String(numero).padStart(2, '0')} · {cancion.titulo}
         </strong>
@@ -260,107 +370,493 @@ function MundoCancion({ cancion, numero, onCerrar }) {
         </div>
       </div>
 
-      <button ref={botonRef} type="button" className="cn-world__go" onClick={cerrar}>
+      <button
+        ref={botonRef}
+        type="button"
+        className="cn-world__go"
+        onClick={cerrar}
+      >
         Continuar
       </button>
     </div>
   );
 }
 
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
+
 export default function Canciones() {
-  // La lista empieza vacía en cada carga: al recargar la página se limpia
   const [abiertas, setAbiertas] = useState([]);
   const [abierto, setAbierto] = useState(false);
-  const [seleccion, setSeleccion] = useState(CANCIONES[0].id);
+  const [seleccion, setSeleccion] = useState('danse');
   const [sonando, setSonando] = useState(false);
-  const [avisos, setAvisos] = useState([]); // cola de { id, n } → pantallas "canción desbloqueada"
+  const [reproduciendoId, setReproduciendoId] = useState(null);
+  const [errorAudio, setErrorAudio] = useState('');
+  const [avisos, setAvisos] = useState([]);
+
   const abiertasRef = useRef(new Set());
   const avisoN = useRef(0);
 
-  const aviso = avisos[0] || null; // el que se está mostrando ahora
+  // ÚNICA instancia de audio para todas las canciones locales.
+  const audioRef = useRef(null);
+  const audioCancionRef = useRef(null);
 
-  // Desbloquea una canción (solo dura esta visita)
-  useEffect(() => {
-    // Borra lo que versiones anteriores guardaron en el navegador
-    try {
-      localStorage.removeItem('portafolio-canciones');
-      localStorage.removeItem('portafolio-musica-desbloqueada');
-    } catch {
-      /* sin almacenamiento */
-    }
+  const seleccionRef = useRef(seleccion);
+  const sonandoRef = useRef(sonando);
+  const alternarRef = useRef(null);
+  const alternarPorIdRef = useRef(null);
+  const manejarViniloRef = useRef(null);
+  const solicitudRef = useRef(0);
 
-    const abrir = (id) => {
-      if (!CANCIONES.some((c) => c.id === id)) return;
+  seleccionRef.current = seleccion;
+  sonandoRef.current = sonando;
 
-      // Solo avisa la primera vez que se desbloquea cada canción
-      if (!abiertasRef.current.has(id)) {
-        abiertasRef.current.add(id);
-        setAbiertas((prev) => (prev.includes(id) ? prev : [...prev, id]));
-        avisoN.current += 1;
-        const n = avisoN.current;
-        setAvisos((prev) => [...prev, { id, n }]);
-      }
-
-      setSeleccion(id);
-    };
-
-    const manejadores = Object.entries(EVENTOS).map(([evento, id]) => {
-      const fn = () => abrir(id);
-      window.addEventListener(evento, fn);
-      return [evento, fn];
-    });
-
-    // Para desbloquear cualquiera desde otro lugar:
-    // window.dispatchEvent(new CustomEvent('cancion-desbloqueada', { detail: { id: 'laferte' } }))
-    const porId = (e) => abrir(e.detail?.id);
-    window.addEventListener('cancion-desbloqueada', porId);
-
-    return () => {
-      manejadores.forEach(([evento, fn]) => window.removeEventListener(evento, fn));
-      window.removeEventListener('cancion-desbloqueada', porId);
-    };
-  }, []);
-
-  // Se entera de si la música de fondo suena (también cuando la pausa el reproductor de la página)
-  useEffect(() => {
-    const sincronizar = (e) => setSonando(Boolean(e.detail?.sonando));
-    window.addEventListener('musica-fondo', sincronizar);
-    window.addEventListener('musica-control', sincronizar);
-    return () => {
-      window.removeEventListener('musica-fondo', sincronizar);
-      window.removeEventListener('musica-control', sincronizar);
-    };
-  }, []);
-
-  // Reproduce / pausa la canción (la maneja el Cursor, que es quien tiene el audio)
-  const alternar = () => {
-    const siguiente = !sonando;
-    setSonando(siguiente);
-    window.dispatchEvent(new CustomEvent('musica-control', { detail: { sonando: siguiente } }));
-  };
-
-  // Escape cierra la ventana
-  useEffect(() => {
-    if (!abierto) return undefined;
-    const cerrar = (e) => {
-      if (e.key === 'Escape') setAbierto(false);
-    };
-    window.addEventListener('keydown', cerrar);
-    return () => window.removeEventListener('keydown', cerrar);
-  }, [abierto]);
-
-  const total = CANCIONES.length;
-  const cuantas = CANCIONES.filter((c) => abiertas.includes(c.id)).length;
+  const aviso = avisos[0] || null;
   const actual = CANCIONES.find((c) => c.id === seleccion) || CANCIONES[0];
   const bloqueada = !abiertas.includes(actual.id);
   const puedeSonar = !bloqueada && Boolean(actual.reproducible);
 
-  const cancionAviso = aviso ? CANCIONES.find((c) => c.id === aviso.id) : null;
+  const actualSonando =
+    actual.tipoReproduccion === 'fondo'
+      ? sonando
+      : reproduciendoId === actual.id;
+
+  // ----------------------------------------------------------
+  // DESBLOQUEAR Y SELECCIONAR
+  // ----------------------------------------------------------
+
+  const abrirCancion = useCallback((id, seleccionar = true) => {
+    if (!CANCIONES.some((c) => c.id === id)) return false;
+
+    if (!abiertasRef.current.has(id)) {
+      abiertasRef.current.add(id);
+
+      setAbiertas((prev) => (prev.includes(id) ? prev : [...prev, id]));
+
+      avisoN.current += 1;
+      setAvisos((prev) => [...prev, { id, n: avisoN.current }]);
+    }
+
+    if (seleccionar) {
+      seleccionRef.current = id;
+      setSeleccion(id);
+    }
+
+    return true;
+  }, []);
+
+  // ----------------------------------------------------------
+  // SINCRONIZAR DANSE Y DESBLOQUEOS
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    const onDesbloqueada = (e) => {
+      const id = e.detail?.id;
+      if (id) abrirCancion(id);
+    };
+
+    const onMusicaFondo = (e) => {
+      abrirCancion('danse');
+
+      const estado =
+        typeof e.detail?.sonando === 'boolean' ? e.detail.sonando : true;
+
+      sonandoRef.current = estado;
+      setSonando(estado);
+      emitirEstadoVinilo(estado, 'danse');
+    };
+
+    const onMusicaControl = (e) => {
+      if (typeof e.detail?.sonando !== 'boolean') return;
+
+      const estado = e.detail.sonando;
+      sonandoRef.current = estado;
+      setSonando(estado);
+
+      if (seleccionRef.current === 'danse') {
+        emitirEstadoVinilo(estado, 'danse');
+      }
+    };
+
+    window.addEventListener('cancion-desbloqueada', onDesbloqueada);
+    window.addEventListener('musica-fondo', onMusicaFondo);
+    window.addEventListener('musica-control', onMusicaControl);
+
+    return () => {
+      window.removeEventListener('cancion-desbloqueada', onDesbloqueada);
+      window.removeEventListener('musica-fondo', onMusicaFondo);
+      window.removeEventListener('musica-control', onMusicaControl);
+    };
+  }, [abrirCancion]);
+
+  // ----------------------------------------------------------
+  // DETENER EL AUDIO LOCAL SIN DEJAR REPRODUCCIONES ACTIVAS
+  // ----------------------------------------------------------
+
+  const detenerAudioArchivo = useCallback(() => {
+    // Invalida cualquier play() que siga pendiente.
+    solicitudRef.current += 1;
+
+    const audio = audioRef.current;
+    const idAnterior = audioCancionRef.current;
+
+    if (audio) {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    audioRef.current = null;
+    audioCancionRef.current = null;
+
+    setReproduciendoId(null);
+
+    if (idAnterior) {
+      emitirEstadoVinilo(false, idAnterior);
+    }
+  }, []);
+
+  // ----------------------------------------------------------
+  // SELECCIONAR CANCIÓN
+  // ----------------------------------------------------------
+
+  const seleccionarCancion = (id) => {
+    if (!CANCIONES.some((c) => c.id === id)) return;
+
+    if (audioCancionRef.current && audioCancionRef.current !== id) {
+      detenerAudioArchivo();
+    }
+
+    if (id !== 'danse') {
+      // Avisar al reproductor de Danse para que se detenga.
+      emitirControlDanse(false);
+
+      sonandoRef.current = false;
+      setSonando(false);
+      emitirEstadoVinilo(false, 'danse');
+    }
+
+    setErrorAudio('');
+    seleccionRef.current = id;
+    setSeleccion(id);
+  };
+
+  // ----------------------------------------------------------
+  // REPRODUCIR UNA CANCIÓN LOCAL
+  // ----------------------------------------------------------
+
+  const iniciarAudioArchivo = async (cancion) => {
+    if (!cancion?.audioSrc) {
+      setErrorAudio(`Falta configurar el audio de ${cancion?.titulo || 'esta canción'}.`);
+      return;
+    }
+
+    // La nueva pista sustituye por completo a la anterior.
+    detenerAudioArchivo();
+
+    const solicitud = ++solicitudRef.current;
+
+    sonandoRef.current = false;
+    setSonando(false);
+
+    emitirControlDanse(false);
+    emitirEstadoVinilo(false, 'danse');
+
+    const audio = new Audio(cancion.audioSrc);
+    audio.preload = 'auto';
+
+    // Todas las pistas locales comparten esta misma referencia.
+    audioRef.current = audio;
+    audioCancionRef.current = cancion.id;
+
+    audio.onended = () => {
+      if (audioRef.current !== audio) return;
+
+      audioRef.current = null;
+      audioCancionRef.current = null;
+
+      setReproduciendoId(null);
+      emitirEstadoVinilo(false, cancion.id);
+    };
+
+    audio.onerror = () => {
+      if (audioRef.current !== audio) return;
+
+      audioRef.current = null;
+      audioCancionRef.current = null;
+
+      setReproduciendoId(null);
+      emitirEstadoVinilo(false, cancion.id);
+      setErrorAudio(`No se pudo cargar ${cancion.titulo}. Revisa la ruta de su MP3.`);
+    };
+
+    try {
+      await audio.play();
+
+      // Si el usuario cambió de canción mientras play() esperaba,
+      // no actualizar el estado con una pista que ya no es la actual.
+      if (
+        audioRef.current !== audio ||
+        solicitudRef.current !== solicitud
+      ) {
+        audio.pause();
+        return;
+      }
+
+      setReproduciendoId(cancion.id);
+      emitirEstadoVinilo(true, cancion.id);
+    } catch (error) {
+      if (audioRef.current !== audio) return;
+
+      audio.pause();
+      audioRef.current = null;
+      audioCancionRef.current = null;
+
+      setReproduciendoId(null);
+      emitirEstadoVinilo(false, cancion.id);
+      setErrorAudio(`No se pudo reproducir ${cancion.titulo}. Revisa su archivo MP3.`);
+
+      console.error(`Error al reproducir ${cancion.titulo}:`, error);
+    }
+  };
+
+  // ----------------------------------------------------------
+  // REPRODUCIR / PAUSAR / REANUDAR UNA CANCIÓN POR ID
+  // ----------------------------------------------------------
+
+  const alternarPorId = async (id) => {
+    const cancion = CANCIONES.find((c) => c.id === id);
+    if (!cancion || !cancion.reproducible) return;
+
+    abrirCancion(id);
+
+    seleccionRef.current = id;
+    setSeleccion(id);
+    setErrorAudio('');
+
+    // Danse utiliza el reproductor de fondo externo.
+    if (cancion.tipoReproduccion === 'fondo') {
+      detenerAudioArchivo();
+
+      const siguiente = !sonandoRef.current;
+      sonandoRef.current = siguiente;
+      setSonando(siguiente);
+
+      emitirControlDanse(siguiente);
+      emitirEstadoVinilo(siguiente, id);
+      return;
+    }
+
+    const audioActual = audioRef.current;
+    const mismoAudio = audioCancionRef.current === id;
+
+    if (audioActual && mismoAudio) {
+      if (!audioActual.paused && !audioActual.ended) {
+        audioActual.pause();
+        setReproduciendoId(null);
+        emitirEstadoVinilo(false, id);
+        return;
+      }
+
+      const solicitud = ++solicitudRef.current;
+
+      try {
+        await audioActual.play();
+
+        if (
+          audioRef.current === audioActual &&
+          solicitudRef.current === solicitud
+        ) {
+          setReproduciendoId(id);
+          emitirEstadoVinilo(true, id);
+        } else {
+          audioActual.pause();
+        }
+      } catch (error) {
+        if (audioRef.current !== audioActual) return;
+
+        setReproduciendoId(null);
+        emitirEstadoVinilo(false, id);
+        setErrorAudio(`No se pudo reanudar ${cancion.titulo}.`);
+
+        console.error(`Error al reanudar ${cancion.titulo}:`, error);
+      }
+
+      return;
+    }
+
+    await iniciarAudioArchivo(cancion);
+  };
+
+  alternarPorIdRef.current = alternarPorId;
+
+  const alternar = async () => {
+    if (bloqueada || !actual.reproducible) return;
+    await alternarPorIdRef.current?.(actual.id);
+  };
+
+  alternarRef.current = alternar;
+
+  // ----------------------------------------------------------
+  // EVENTO DEL BAFLE: CYBERPUNK (canción 05)
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    const onBafle = () => {
+      alternarPorIdRef.current?.('cyberpunk');
+    };
+
+    window.addEventListener('cyberpunk-bafle-toggle', onBafle);
+
+    return () => {
+      window.removeEventListener('cyberpunk-bafle-toggle', onBafle);
+    };
+  }, []);
+
+  // ----------------------------------------------------------
+  // EVENTO DEL VIOLÍN: AL EMPEZAR LA PARTIDA SE CALLA TODO
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    const onViolin = () => {
+      detenerAudioArchivo();
+
+      if (sonandoRef.current) {
+        emitirControlDanse(false);
+        sonandoRef.current = false;
+        setSonando(false);
+        emitirEstadoVinilo(false, 'danse');
+      }
+    };
+
+    window.addEventListener('violin-juego', onViolin);
+
+    return () => {
+      window.removeEventListener('violin-juego', onViolin);
+    };
+  }, [detenerAudioArchivo]);
+
+  // ----------------------------------------------------------
+  // VINILO GRANDE DE HERO
+  // Pausa lo que esté sonando (sea cual sea la canción) y,
+  // si no suena nada, reproduce la seleccionada.
+  // ----------------------------------------------------------
+
+  manejarViniloRef.current = () => {
+    // 1) Si suena un MP3 local, el vinilo lo pausa (sea cual sea).
+    if (audioRef.current && !audioRef.current.paused) {
+      alternarPorIdRef.current?.(audioCancionRef.current);
+      return;
+    }
+
+    // 2) Si suena Danse, el vinilo la pausa.
+    if (sonandoRef.current) {
+      alternarPorIdRef.current?.('danse');
+      return;
+    }
+
+    // 3) Si no suena nada, reproduce la seleccionada (si está desbloqueada).
+    const id = seleccionRef.current;
+
+    if (abiertasRef.current.has(id)) {
+      alternarPorIdRef.current?.(id);
+      return;
+    }
+
+    // 4) Si la selección sigue bloqueada, el vinilo descubre Mon Laferte.
+    abrirCancion('laferte');
+
+    seleccionRef.current = 'laferte';
+    setSeleccion('laferte');
+    setErrorAudio('');
+
+    void iniciarAudioArchivo(CANCIONES.find((c) => c.id === 'laferte'));
+  };
+
+  useEffect(() => {
+    const api = {
+      owner: audioRef,
+      toggle: () => manejarViniloRef.current?.(),
+      playId: (id) => alternarPorIdRef.current?.(id),
+    };
+
+    window.__portafolioCancionesVinilo = api;
+
+    return () => {
+      if (window.__portafolioCancionesVinilo === api) {
+        delete window.__portafolioCancionesVinilo;
+      }
+    };
+  }, []);
+
+  // ----------------------------------------------------------
+  // LIMPIEZA AL DESMONTAR
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    return () => {
+      solicitudRef.current += 1;
+
+      const audio = audioRef.current;
+
+      if (audio) {
+        audio.onended = null;
+        audio.onerror = null;
+        audio.pause();
+        audio.currentTime = 0;
+      }
+
+      const id = audioCancionRef.current;
+
+      audioRef.current = null;
+      audioCancionRef.current = null;
+
+      if (id) emitirEstadoVinilo(false, id);
+
+      if (
+        typeof window !== 'undefined' &&
+        window.__portafolioCancionesVinilo?.owner === audioRef
+      ) {
+        delete window.__portafolioCancionesVinilo;
+      }
+    };
+  }, []);
+
+  // ----------------------------------------------------------
+  // CERRAR MODAL CON ESCAPE
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    if (!abierto) return undefined;
+
+    const cerrar = (e) => {
+      if (e.key === 'Escape') setAbierto(false);
+    };
+
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [abierto]);
+
+  // ----------------------------------------------------------
+  // DATOS PARA LA INTERFAZ
+  // ----------------------------------------------------------
+
+  const total = CANCIONES.length;
+  const cuantas = CANCIONES.filter((c) => abiertas.includes(c.id)).length;
+
+  const cancionAviso = aviso
+    ? CANCIONES.find((c) => c.id === aviso.id)
+    : null;
+
+  // ----------------------------------------------------------
+  // INTERFAZ
+  // ----------------------------------------------------------
 
   return (
     <>
       <style>{`
-        /* ───────── Pantalla "mundo nuevo" de canción desbloqueada ───────── */
         .cn-world {
           --o-azul: #1b6fe0;
           --o-oscuro: #0b2a7a;
@@ -372,32 +868,32 @@ export default function Canciones() {
           --o-texto: "Smile", var(--font-body, system-ui), sans-serif;
           position: fixed;
           inset: 0;
-          z-index: 10000; /* por debajo de la estrella del cursor (10001) */
+          z-index: 10000;
           display: flex;
           align-items: center;
           justify-content: center;
           overflow: hidden;
           cursor: pointer;
-          pointer-events: auto; /* la página tiene capas con pointer-events: none */
+          pointer-events: auto;
           font-family: var(--o-texto);
           touch-action: none;
           user-select: none;
           -webkit-user-select: none;
         }
-        .cn-world *,
-        .cn-world *::before,
-        .cn-world *::after {
+
+        .cn-world *, .cn-world *::before, .cn-world *::after {
           -webkit-tap-highlight-color: transparent;
         }
+
         .cn-world__bg {
           position: absolute;
           inset: 0;
           overflow: hidden;
           background:
-            radial-gradient(circle, rgba(255, 255, 255, .12) 2px, transparent 2.5px) 0 0 / 22px 22px,
+            radial-gradient(circle, rgba(255,255,255,.12) 2px, transparent 2.5px) 0 0 / 22px 22px,
             linear-gradient(160deg, #0a3fd6, #1273ea 60%, #14a0ec);
         }
-        /* aro que late detrás del personaje */
+
         .cn-world__dots {
           position: absolute;
           left: 50%;
@@ -405,32 +901,35 @@ export default function Canciones() {
           width: 62vmin;
           aspect-ratio: 1;
           margin: -31vmin 0 0 -31vmin;
-          border: 5px solid rgba(255, 255, 255, .5);
+          border: 5px solid rgba(255,255,255,.5);
           border-radius: 50%;
-          box-shadow: 0 0 0 3px rgba(11, 42, 122, .35);
+          box-shadow: 0 0 0 3px rgba(11,42,122,.35);
           animation: cn-pulso 2.2s ease-out infinite;
         }
+
         @keyframes cn-pulso {
-          0%   { transform: scale(.55); opacity: .9; }
+          0% { transform: scale(.55); opacity: .9; }
           100% { transform: scale(1.35); opacity: 0; }
         }
-        /* textura de papel (ruido SVG) */
+
         .cn-world__paper {
           position: absolute;
           inset: 0;
-          opacity: 0.35;
+          opacity: .35;
           mix-blend-mode: multiply;
-          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.2  0 0 0 0 0.4  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.15 0 0 0 0 0.2 0 0 0 0 0.4 0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
         }
+
         .cn-world__vignette {
           position: absolute;
           inset: 0;
-          background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(5, 20, 70, 0.55) 100%);
+          background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(5,20,70,.55) 100%);
         }
+
         .cn-world__note {
           position: absolute;
           bottom: -60px;
-          color: rgba(255, 255, 255, 0.5);
+          color: rgba(255,255,255,.5);
           font-family: var(--o-titulo);
           pointer-events: none;
           will-change: transform;
@@ -447,7 +946,7 @@ export default function Canciones() {
           color: var(--o-tinta);
           border: 3px solid var(--o-tinta);
           border-radius: 14px;
-          box-shadow: 0 6px 0 rgba(43, 26, 26, .55), 0 14px 30px rgba(0, 0, 0, .25);
+          box-shadow: 0 6px 0 rgba(43,26,26,.55), 0 14px 30px rgba(0,0,0,.25);
           font-family: var(--o-titulo);
           font-size: clamp(.9rem, 2.4vw, 1.4rem);
           line-height: 1.1;
@@ -456,6 +955,7 @@ export default function Canciones() {
           white-space: nowrap;
           pointer-events: none;
         }
+
         .cn-world__banner strong {
           display: block;
           width: fit-content;
@@ -468,7 +968,6 @@ export default function Canciones() {
           font-size: .62em;
         }
 
-        /* escenario con la proporción de la referencia (732 × 575) */
         .cn-world__stage {
           position: relative;
           z-index: 2;
@@ -477,54 +976,56 @@ export default function Canciones() {
           container-type: inline-size;
           pointer-events: none;
         }
+
         .cn-world__hero {
           position: absolute;
           left: 32%;
           top: 39%;
           width: 36%;
         }
-        .cn-world__hero-inner img,
-        .cn-world__bubble-img {
+
+        .cn-world__hero-inner img, .cn-world__bubble-img {
           display: block;
           width: 100%;
           height: auto;
           user-select: none;
         }
+
         .cn-world__hero-inner img {
-          filter: drop-shadow(0 8px 10px rgba(5, 20, 70, 0.45));
+          filter: drop-shadow(0 8px 10px rgba(5,20,70,.45));
         }
+
         .cn-world__bubble {
           position: absolute;
           left: 24%;
           top: 15%;
           width: 64%;
-          transform-origin: 30% 100%; /* nace cerca de la boca del personaje */
+          transform-origin: 30% 100%;
         }
+
         .cn-world__bubble-img {
-          filter: drop-shadow(4px 6px 0 rgba(5, 20, 70, 0.35));
+          filter: drop-shadow(4px 6px 0 rgba(5,20,70,.35));
         }
-       /* el texto vive en la parte alta del globo, lejos de la cola */
-.cn-world__text {
-  position: absolute;
-  left: 7%;
-  top: 1%;
-  width: 90%;
-  height: 52%;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: center;
-  font-family: var(--o-texto);
-  font-weight: 400;
-  font-size: 2.7cqw;
-  line-height: 1.12;
-  color: #1a1a1a;
-  transform: rotate(3deg);
-}
-        .cn-w {
-          display: inline-block;
-          white-space: pre;
+
+        .cn-world__text {
+          position: absolute;
+          left: 7%;
+          top: 1%;
+          width: 90%;
+          height: 52%;
+          margin: 0;
+          display: flex;
+          flex-wrap: wrap;
+          align-content: center;
+          font-family: var(--o-texto);
+          font-weight: 400;
+          font-size: 2.7cqw;
+          line-height: 1.12;
+          color: #1a1a1a;
+          transform: rotate(3deg);
         }
+
+        .cn-w { display: inline-block; white-space: pre; }
 
         .cn-world__go {
           position: absolute;
@@ -544,13 +1045,24 @@ export default function Canciones() {
           text-transform: uppercase;
           cursor: pointer;
           pointer-events: auto;
-          transition: transform 0.15s, box-shadow 0.15s;
+          transition: transform .15s, box-shadow .15s;
         }
-        .cn-world__go:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--o-tinta); }
-        .cn-world__go:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--o-tinta); }
-        .cn-world__go:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 
-        /* ───────── Botón de cerrar: solo la estrella roja ───────── */
+        .cn-world__go:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 0 var(--o-tinta);
+        }
+
+        .cn-world__go:active {
+          transform: translateY(3px);
+          box-shadow: 0 1px 0 var(--o-tinta);
+        }
+
+        .cn-world__go:focus-visible {
+          outline: 3px solid #fff;
+          outline-offset: 3px;
+        }
+
         .cn-star-close {
           flex: none;
           display: block;
@@ -562,8 +1074,9 @@ export default function Canciones() {
           box-shadow: none;
           cursor: pointer;
           pointer-events: auto;
-          transition: transform .25s cubic-bezier(.34, 1.56, .64, 1), filter .25s;
+          transition: transform .25s cubic-bezier(.34,1.56,.64,1), filter .25s;
         }
+
         .cn-star-close img {
           display: block;
           width: 100%;
@@ -571,12 +1084,15 @@ export default function Canciones() {
           pointer-events: none;
           user-select: none;
         }
-        .cn-star-close:hover,
-        .cn-star-close:focus-visible {
+
+        .cn-star-close:hover, .cn-star-close:focus-visible {
           transform: scale(1.15) rotate(20deg);
           outline: none;
         }
-        .cn-star-close:active { transform: scale(.9) rotate(-10deg); }
+
+        .cn-star-close:active {
+          transform: scale(.9) rotate(-10deg);
+        }
       `}</style>
 
       {cancionAviso && (
@@ -597,9 +1113,7 @@ export default function Canciones() {
       >
         <span aria-hidden="true">♪</span>
         Mis canciones
-        <span className="cn-fab__count">
-          {cuantas}/{total}
-        </span>
+        <span className="cn-fab__count">{cuantas}/{total}</span>
       </button>
 
       {abierto && (
@@ -609,20 +1123,30 @@ export default function Canciones() {
             if (e.target === e.currentTarget) setAbierto(false);
           }}
         >
-          <section className="cn" role="dialog" aria-modal="true" aria-label="Mis canciones" data-piano="true">
+          <section
+            className="cn"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mis canciones"
+            data-piano="true"
+          >
             <header className="cn-head">
               <h2 className="cn-title">Mis canciones</h2>
 
-              <div className="cn-meter" role="img" aria-label={`${cuantas} de ${total} canciones`}>
-                <span className="cn-meter__count">
-                  {cuantas}/{total}
-                </span>
+              <div
+                className="cn-meter"
+                role="img"
+                aria-label={`${cuantas} de ${total} canciones`}
+              >
+                <span className="cn-meter__count">{cuantas}/{total}</span>
                 <span className="cn-meter__track">
-                  <span className="cn-meter__fill" style={{ width: `${(cuantas / total) * 100}%` }} />
+                  <span
+                    className="cn-meter__fill"
+                    style={{ width: `${(cuantas / total) * 100}%` }}
+                  />
                 </span>
               </div>
 
-              {/* La estrella roja ES el botón: sin fondo, borde ni sombra */}
               <button
                 type="button"
                 className="cn-star-close"
@@ -634,7 +1158,6 @@ export default function Canciones() {
             </header>
 
             <div className="cn-body">
-              {/* Lista de canciones */}
               <ul className="cn-list">
                 {CANCIONES.map((c, i) => {
                   const cerrada = !abiertas.includes(c.id);
@@ -646,13 +1169,19 @@ export default function Canciones() {
                         type="button"
                         className={`cn-item${activa ? ' is-active' : ''}${cerrada ? ' is-locked' : ''}`}
                         aria-current={activa ? 'true' : undefined}
-                        onClick={() => setSeleccion(c.id)}
+                        onClick={() => seleccionarCancion(c.id)}
                       >
-                        <span className="cn-item__num">{String(i + 1).padStart(2, '0')}</span>
+                        <span className="cn-item__num">
+                          {String(i + 1).padStart(2, '0')}
+                        </span>
 
                         <span className="cn-item__text">
-                          <span className="cn-item__name">{cerrada ? '???' : c.titulo}</span>
-                          <span className="cn-item__artist">{cerrada ? 'Canción bloqueada' : c.artista}</span>
+                          <span className="cn-item__name">
+                            {cerrada ? '???' : c.titulo}
+                          </span>
+                          <span className="cn-item__artist">
+                            {cerrada ? 'Canción bloqueada' : c.artista}
+                          </span>
                         </span>
 
                         {cerrada && <Candado />}
@@ -662,20 +1191,24 @@ export default function Canciones() {
                 })}
               </ul>
 
-              {/* Detalle */}
               <article className="cn-detail" aria-live="polite">
                 <div className="cn-detail__top">
                   <Disco
                     portada={actual.portada}
                     bloqueada={bloqueada}
                     titulo={actual.titulo}
-                    sonando={sonando}
+                    sonando={actualSonando}
                     onClick={puedeSonar ? alternar : undefined}
                   />
 
                   <div className="cn-detail__info">
-                    <h3 className="cn-detail__name">{bloqueada ? '???' : actual.titulo}</h3>
-                    <p className="cn-detail__artist">{bloqueada ? 'Artista desconocido' : actual.artista}</p>
+                    <h3 className="cn-detail__name">
+                      {bloqueada ? '???' : actual.titulo}
+                    </h3>
+
+                    <p className="cn-detail__artist">
+                      {bloqueada ? 'Artista desconocido' : actual.artista}
+                    </p>
 
                     {!bloqueada && (
                       <div className="cn-tags">
@@ -685,11 +1218,27 @@ export default function Canciones() {
                     )}
 
                     {puedeSonar && (
-                      <button type="button" className="cn-play" aria-pressed={sonando} onClick={alternar}>
+                      <button
+                        type="button"
+                        className="cn-play"
+                        aria-pressed={actualSonando}
+                        onClick={alternar}
+                      >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
-                          {sonando ? <path d="M7 5h4v14H7zM13 5h4v14h-4z" /> : <path d="M8 5v14l11-7z" />}
+                          {actualSonando ? (
+                            <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+                          ) : (
+                            <path d="M8 5v14l11-7z" />
+                          )}
                         </svg>
-                        {sonando ? 'Pausar' : 'Escuchar'}
+
+                        {actualSonando
+                          ? 'Pausar'
+                          : actual.tipoReproduccion !== 'fondo' &&
+                              audioRef.current &&
+                              audioCancionRef.current === actual.id
+                            ? 'Reanudar'
+                            : 'Escuchar'}
                       </button>
                     )}
                   </div>
@@ -699,7 +1248,21 @@ export default function Canciones() {
                   <span className="cn-note__label">
                     {bloqueada ? 'Pista' : '¿Qué significa para mí?'}
                   </span>
+
                   <p>{bloqueada ? actual.pista : actual.significado}</p>
+
+                  {errorAudio && !bloqueada && (
+                    <p
+                      role="alert"
+                      style={{
+                        marginTop: '0.65rem',
+                        color: '#b42318',
+                        fontSize: '0.9rem',
+                      }}
+                    >
+                      {errorAudio}
+                    </p>
+                  )}
                 </div>
               </article>
             </div>

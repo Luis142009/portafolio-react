@@ -1,9 +1,10 @@
 /* =========================================================
-   RETO DEL VIOLÍN  (estilo osu!)
-   Misma estética del portafolio: azules, bordes tinta,
-   sombras duras, puntitos, Titan / Smile.
-   Referencia visual: fondo azul, cuerdas blancas ligeramente
-   inclinadas y un arco cian con borde blanco cruzándolas.
+   RETO DEL VIOLÍN 3D  (estilo osu!, campo en perspectiva)
+   Misma estética del portafolio / loader: azules, bordes tinta,
+   sombras duras, puntitos, vinilos, estrellas, Titan / Smile.
+
+   El campo es un PLANO inclinado en 3D (perspective + rotateX).
+   Las notas son "gemas" que flotan sobre el plano con su sombra.
    Guárdalo en src/stylesheets/Violin.css
    ========================================================= */
 
@@ -38,7 +39,7 @@
   border: 0;
   background: none;
   cursor: pointer;
-  pointer-events: auto; /* las capas de la escena no reciben clics: el botón sí */
+  pointer-events: auto;
   transition: transform .25s cubic-bezier(.34, 1.56, .64, 1), filter .25s;
 }
 
@@ -54,9 +55,7 @@
   filter: drop-shadow(0 0 12px rgba(255, 210, 63, .9));
 }
 
-.vio-btn:active {
-  transform: scale(.94);
-}
+.vio-btn:active { transform: scale(.94); }
 
 .vio-btn:focus-visible {
   outline: 3px solid #fff;
@@ -101,14 +100,42 @@
   justify-content: center;
   overflow: hidden;
   background:
+    radial-gradient(ellipse 70% 55% at 50% 62%, rgba(47, 212, 255, .38), transparent 70%),
     radial-gradient(circle, rgba(255, 255, 255, .12) 2px, transparent 2.5px) 0 0 / 22px 22px,
-    linear-gradient(160deg, #1b4fe6, #2563f5 55%, #2f80f7);
+    linear-gradient(170deg, #153fd0, #2563f5 50%, #2f80f7 78%, #0b2a7a);
   color: #fff;
   font-family: var(--v-texto);
-  cursor: none; /* el cursor es el arco */
+  cursor: none;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* Rayos giratorios de fondo (como el escenario del loader) */
+.vio::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  background: repeating-conic-gradient(
+    from 0deg at 50% 62%,
+    rgba(255, 255, 255, .07) 0 5deg,
+    transparent 5deg 12deg
+  );
+  animation: vio-rayos 90s linear infinite;
+  pointer-events: none;
+}
+
+/* Viñeta */
+.vio::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 55%, transparent 55%, rgba(7, 34, 110, .65));
+  pointer-events: none;
+}
+
+@keyframes vio-rayos {
+  to { transform: rotate(360deg); }
 }
 
 .vio *,
@@ -117,15 +144,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.vio button {
-  cursor: pointer;
-}
+.vio button { cursor: pointer; }
 
-/* Decoración */
+/* ---------- Decoración: vinilos y estrellas ---------- */
 
 .vio__aros {
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
 }
 
@@ -135,16 +161,43 @@
 }
 
 .vio-deco--disco {
-  width: clamp(60px, 10vw, 130px);
+  width: clamp(70px, 12vw, 160px);
   aspect-ratio: 1;
-  border: 5px solid rgba(255, 255, 255, .45);
+  border: 4px solid var(--v-tinta);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, .3) 0 12%, transparent 13%);
+  background:
+    radial-gradient(circle, var(--v-oro) 0 17%, var(--v-tinta) 18% 21%, transparent 22%),
+    conic-gradient(from 20deg, rgba(255, 255, 255, .22), transparent 18%, transparent 50%, rgba(255, 255, 255, .18) 68%, transparent 85%, rgba(255, 255, 255, .22)),
+    repeating-radial-gradient(circle, #101018 0 3px, #1d1d2a 3px 5px);
+  box-shadow: 0 7px 0 rgba(43, 26, 26, .55), 0 16px 26px rgba(0, 0, 0, .3);
+  animation: vio-gira 9s linear infinite;
 }
 
-.vio-deco--a { top: 14%; right: 7%; }
-.vio-deco--b { bottom: 8%; left: 5%; border-color: rgba(255, 210, 63, .7); }
-.vio-deco--c { bottom: 12%; right: 11%; width: clamp(40px, 6vw, 80px); }
+.vio-deco--a { top: 12%; right: 5%; }
+.vio-deco--b { bottom: 7%; left: 3%; animation-duration: 14s; animation-direction: reverse; }
+.vio-deco--c { bottom: 16%; right: 9%; width: clamp(44px, 7vw, 92px); animation-duration: 6s; }
+
+.vio-estrella {
+  position: absolute;
+  width: clamp(26px, 4.6vw, 62px);
+  height: auto;
+  filter: drop-shadow(0 4px 0 rgba(11, 42, 122, .5));
+  animation: vio-flota 4.2s ease-in-out infinite;
+}
+
+.vio-estrella--a { top: 10%; left: 12%; }
+.vio-estrella--b { top: 24%; right: 22%; width: clamp(20px, 3.4vw, 44px); animation-delay: -1.4s; }
+.vio-estrella--c { bottom: 9%; left: 24%; width: clamp(22px, 3.6vw, 48px); animation-delay: -2.6s; }
+.vio-estrella--d { bottom: 22%; right: 3%; animation-delay: -.8s; }
+
+@keyframes vio-gira {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes vio-flota {
+  0%, 100% { transform: translateY(0) rotate(-12deg); }
+  50% { transform: translateY(-14px) rotate(14deg); }
+}
 
 /* ---------- Cerrar ---------- */
 
@@ -168,7 +221,7 @@
   transition: transform .15s, box-shadow .15s;
 }
 
-.vio-cerrar:hover { transform: translateY(-1px); }
+.vio-cerrar:hover { transform: translateY(-1px) rotate(90deg); }
 .vio-cerrar:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--v-tinta); }
 .vio-cerrar:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 
@@ -183,7 +236,7 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 14px 18px 14px 4.6rem; /* deja sitio al botón de cerrar */
+  padding: 14px 18px 14px 4.6rem;
   pointer-events: none;
 }
 
@@ -196,12 +249,12 @@
 }
 
 .vio__vida {
-  height: 16px;
+  height: 18px;
   overflow: hidden;
   border: 3px solid var(--v-tinta);
   border-radius: 999px;
   background: var(--v-fondo);
-  box-shadow: 0 3px 0 rgba(43, 26, 26, .55);
+  box-shadow: 0 3px 0 rgba(43, 26, 26, .55), inset 0 2px 0 rgba(0, 0, 0, .35);
 }
 
 .vio__vida-fill {
@@ -210,15 +263,16 @@
   transform: scaleX(.7);
   transform-origin: left center;
   background:
-    radial-gradient(circle, rgba(255, 255, 255, .35) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
+    radial-gradient(circle, rgba(255, 255, 255, .4) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
     linear-gradient(180deg, #ffe27a, var(--v-oro));
 }
 
 .vio__prog {
-  height: 6px;
+  height: 7px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(7, 34, 110, .55);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .25);
 }
 
 .vio__prog-fill {
@@ -226,7 +280,7 @@
   height: 100%;
   transform: scaleX(0);
   transform-origin: left center;
-  background: var(--v-cian);
+  background: linear-gradient(90deg, var(--v-cian), #fff);
 }
 
 .vio__stats {
@@ -287,7 +341,7 @@
   pointer-events: none;
 }
 
-/* ---------- Campo de juego ---------- */
+/* ---------- Campo de juego 3D ---------- */
 
 .vio__zona {
   position: relative;
@@ -295,52 +349,113 @@
   display: grid;
   place-items: center;
   width: 100%;
-  padding: 80px 12px 20px;
+  padding: 90px 12px 40px;
 }
 
+/* El "campo" es solo la caja que da el tamaño. El plano 3D vive dentro. */
 .vio__campo {
   --nota: 64px;
   position: relative;
-  width: min(96vw, calc((100svh - 120px) * 2.1));
-  aspect-ratio: 2.1 / 1;
-  border: 4px solid #fff;
-  border-radius: 18px;
-  background:
-    radial-gradient(circle, rgba(255, 255, 255, .13) 1.2px, transparent 1.8px) 0 0 / 14px 14px,
-    linear-gradient(180deg, rgba(7, 34, 110, .55), rgba(7, 34, 110, .35));
-  box-shadow: 6px 7px 0 var(--v-tinta), 0 20px 44px rgba(0, 0, 0, .35);
+  width: min(80vw, calc((100svh - 150px) * 2.1));
+  aspect-ratio: 2 / 1;
   touch-action: none;
 }
 
-/* Las cuerdas (y las notas que viajan por ellas) van un poco inclinadas,
-   como las líneas de la referencia */
+/* Resplandor en el "suelo" bajo el plano */
+.vio__campo::before {
+  content: "";
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: -16%;
+  height: 46%;
+  background: radial-gradient(ellipse, rgba(47, 212, 255, .5), transparent 68%);
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+/* EL PLANO: el transform (perspective + rotateX) lo pone el JSX en línea.
+   Su grosor se finge con una pila de sombras duras hacia abajo. */
+.vio__plano {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 4px solid #fff;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .15) 1.2px, transparent 1.8px) 0 0 / 14px 14px,
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 64px),
+    linear-gradient(180deg, #0a2f93, #0b2a7a 55%, #123bb5);
+  box-shadow:
+    0 2px 0 #08205c,
+    0 4px 0 #08205c,
+    0 6px 0 #08205c,
+    0 8px 0 #07226e,
+    0 10px 0 #07226e,
+    0 12px 0 var(--v-tinta),
+    0 14px 0 var(--v-tinta),
+    0 34px 50px rgba(0, 0, 0, .5);
+}
+
+/* Brillo en el borde lejano del plano (da sensación de profundidad) */
+.vio__plano::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .22), transparent 38%);
+  pointer-events: none;
+}
+
+/* Las cuerdas (y las notas que viajan por ellas) van un poco inclinadas.
+   El ángulo lo pone el JSX en línea para que coincida con la lógica. */
 .vio__cuerdas {
   position: absolute;
   inset: 0;
-  transform: rotate(1deg);
   transform-origin: center;
 }
+
+/* El envoltorio de cada cuerda no genera caja (mantiene la cadena 3D) */
+.vio-fila-cuerda { display: contents; }
 
 .vio-cuerda {
   position: absolute;
   left: -2%;
   right: -2%;
-  height: 3px;
-  margin-top: -1.5px;
+  height: var(--g, 3px);
+  margin-top: calc(var(--g, 3px) / -2);
   border-radius: 3px;
   background: rgba(255, 255, 255, .92);
-  box-shadow: 0 1px 0 rgba(11, 42, 122, .35);
+  box-shadow: 0 1px 0 rgba(11, 42, 122, .35), 0 3px 0 rgba(7, 34, 110, .55);
   transform-origin: center;
   transition: background .12s, box-shadow .12s;
 }
 
-/* grosores: Sol la más gruesa, Mi la más fina */
-.vio-cuerda:nth-of-type(1) { height: 2px; }
-
 .vio-cuerda.is-activa {
   background: #fff;
-  box-shadow: 0 0 12px 3px var(--c), 0 0 0 1px var(--c);
+  box-shadow: 0 0 14px 4px var(--c), 0 0 0 1px var(--c);
 }
+
+/* Carril de color bajo cada cuerda */
+.vio-carril {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(var(--nota) * 1.5);
+  margin-top: calc(var(--nota) * -.75);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--c) 16%, transparent) 18%,
+    color-mix(in srgb, var(--c) 10%, transparent) 90%,
+    transparent
+  );
+  opacity: .7;
+  transition: opacity .15s;
+  pointer-events: none;
+}
+
+.vio-fila-cuerda:has(> .vio-cuerda.is-activa) > .vio-carril { opacity: 1; }
 
 .vio-etiqueta {
   position: absolute;
@@ -368,28 +483,26 @@
   text-shadow: none;
 }
 
-/* El círculo donde se tocan las notas */
-.vio-diana {
+/* ---------- Notas: círculos planos (estilo osu!) ---------- */
+/* Cada nota nace en un punto de su cuerda, quieta, y crece de 0 a 100%.
+   La cabeza vive en una capa plana y el JS la proyecta cada frame sobre el
+   plano 3D, así se ve siempre como un círculo limpio, solo con tamaño de
+   perspectiva. */
+
+.vio__notas {
   position: absolute;
-  width: var(--nota);
-  height: var(--nota);
-  margin: calc(var(--nota) / -2) 0 0 calc(var(--nota) / -2);
-  box-sizing: border-box;
-  border: 4px solid #fff;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .1);
-  box-shadow: 0 0 0 2px var(--v-oscuro), inset 0 0 0 2px var(--v-oscuro);
+  inset: 0;
+  z-index: 2;
   pointer-events: none;
 }
-
-/* ---------- Notas ---------- */
 
 .vio-nota {
   position: absolute;
   left: 0;
+  top: 0;
   width: var(--nota);
   height: var(--nota);
-  margin-top: calc(var(--nota) / -2);
+  margin: calc(var(--nota) / -2) 0 0 calc(var(--nota) / -2);
   visibility: hidden;
   pointer-events: none;
   will-change: transform;
@@ -398,51 +511,127 @@
 .vio-nota__cuerpo {
   position: absolute;
   inset: 0;
-  z-index: 2;
   display: grid;
   place-items: center;
   box-sizing: border-box;
   border: 4px solid #fff;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .6), transparent 46%),
-    var(--c, var(--v-cian));
-  box-shadow: 3px 4px 0 var(--v-oscuro), 0 6px 14px rgba(0, 0, 0, .25);
-  color: #fff;
-  font-family: var(--v-titulo);
-  font-size: calc(var(--nota) * .3);
-  line-height: 1;
-  text-shadow: 0 2px 0 var(--v-oscuro), 0 0 6px rgba(11, 42, 122, .5);
+  background: var(--c, var(--v-cian));
+  box-shadow: 0 3px 0 var(--v-oscuro);
   will-change: transform, opacity;
 }
 
-/* Nota larga: cola con puntitos que sale de la cabeza */
-.vio-nota__cola {
+/* Anillo punteado interior (como los puntitos del portafolio) */
+.vio-nota__cuerpo::before {
+  content: "";
   position: absolute;
-  left: calc(var(--nota) / 2);
-  top: 22%;
-  z-index: 1;
-  height: 56%;
-  box-sizing: border-box;
-  border: 3px solid #fff;
-  border-left: none;
-  border-radius: 0 999px 999px 0;
-  background:
-    radial-gradient(circle, rgba(255, 255, 255, .35) 1.2px, transparent 1.6px) 0 0 / 8px 8px,
-    var(--c, var(--v-cian));
-  box-shadow: 2px 3px 0 var(--v-oscuro);
+  inset: 9%;
+  border: 2px dashed color-mix(in srgb, var(--v-oscuro) 38%, transparent);
+  border-radius: 50%;
 }
 
-.vio-nota.is-fallada {
-  opacity: .35;
+/* Anillo fantasma: marca el tamaño final. Cuando la nota lo llena, ¡córtala! */
+.vio-nota__aro {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 3px dashed rgba(255, 255, 255, .7);
+  border-radius: 50%;
+}
+
+.vio-nota.is-lista .vio-nota__aro {
+  border-style: solid;
+  border-color: #fff;
+  box-shadow: 0 0 0 3px var(--c), 0 0 16px 4px var(--c);
+}
+
+/* Nota larga: anillo que se vacía mientras la sostienes */
+.vio-nota__timer {
+  position: absolute;
+  left: -17%;
+  top: -17%;
+  width: 134%;
+  height: 134%;
+  overflow: visible;
+  opacity: 0;
+  transform: rotate(-90deg);
+  transition: opacity .15s;
+}
+
+.vio-nota__timer circle {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 0;
+}
+
+.vio-nota.is-sostenida .vio-nota__timer { opacity: 1; }
+
+
+
+/* Tajo y chispas al rajar una nota (capa plana, sobre el plano 3D) */
+.vio-raja {
+  position: absolute;
+  z-index: 15;
+  width: 5px;
+  height: calc(var(--nota) * 2.6);
+  border-radius: 5px;
+  background: linear-gradient(180deg, transparent, #fff 30%, #fff 70%, transparent);
+  box-shadow: 0 0 14px 4px var(--c, #fff);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.vio-chispa {
+  position: absolute;
+  z-index: 16;
+  width: calc(var(--nota) * .16);
+  height: calc(var(--nota) * .16);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* ---------- Cargando ---------- */
+
+.vio-cargando {
+  display: flex;
+  justify-content: center;
+  gap: .6rem;
+  margin: 1.2rem 0 .4rem;
+}
+
+.vio-cargando span {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--v-oro);
+  animation: vio-salta .7s ease-in-out infinite;
+}
+
+.vio-cargando span:nth-child(2) { animation-delay: .12s; background: var(--v-cian); }
+.vio-cargando span:nth-child(3) { animation-delay: .24s; }
+
+@keyframes vio-salta {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+/* Fallada: se apaga solo la gema (no la nota entera, para no aplanar el 3D) */
+.vio-nota.is-fallada .vio-nota__cuerpo {
+  opacity: .35 !important;
   filter: grayscale(.8);
 }
 
-/* ---------- Juicio ---------- */
+
+/* ---------- Juicio (capa plana, no se inclina) ---------- */
 
 .vio__juicios {
   position: absolute;
   inset: 0;
+  z-index: 3;
   pointer-events: none;
 }
 
@@ -457,59 +646,50 @@
   text-shadow: none;
 }
 
-.vio-juicio--chico {
-  font-size: calc(var(--nota) * .36);
+.vio-juicio--chico { font-size: calc(var(--nota) * .36); }
+
+/* ---------- Trazo del arco ---------- */
+
+.vio__trazo {
+  position: fixed;
+  inset: 0;
+  z-index: 10004;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 /* ---------- El arco (cursor) ---------- */
 
 .vio-arco {
+  --arco-h: clamp(260px, 54vmin, 520px);
   position: fixed;
   left: 0;
   top: 0;
   z-index: 10005;
-  width: 17px;
-  height: clamp(230px, 38vmin, 360px);
-  box-sizing: border-box;
-  border: 3px solid #fff;
-  border-radius: 3px;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, .35), transparent 45%),
-    var(--v-arco);
-  box-shadow: 3px 4px 0 var(--v-tinta), 0 8px 18px rgba(0, 0, 0, .3);
-  transform: translate3d(50vw, 50vh, 0) translate(-50%, -50%) rotate(-33deg);
+  width: calc(var(--arco-h) * 215 / 715);
+  height: var(--arco-h);
+  transform: translate3d(50vw, 50vh, 0) translate(-50%, -50%);
   pointer-events: none;
-  transition: box-shadow .12s, filter .12s;
+  will-change: transform;
 }
 
-.vio-arco.is-presionado {
-  filter: brightness(1.15);
-  box-shadow: 3px 4px 0 var(--v-tinta), 0 0 22px 4px rgba(47, 212, 255, .85);
+.vio-arco__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(3px 4px 0 rgba(11, 42, 122, .75)) drop-shadow(0 8px 14px rgba(0, 0, 0, .3));
+  transition: filter .1s;
 }
 
-/* talón (empuñadura) y punta del arco */
-.vio-arco__talon,
-.vio-arco__punta {
-  position: absolute;
-  left: -6px;
-  right: -6px;
-  box-sizing: border-box;
-  border: 3px solid #fff;
-  border-radius: 4px;
+.vio-arco.is-presionado .vio-arco__img {
+  filter: drop-shadow(3px 4px 0 rgba(11, 42, 122, .75)) drop-shadow(0 0 10px rgba(47, 212, 255, .95));
 }
 
-.vio-arco__talon {
-  top: -3px;
-  height: 22px;
-  background: var(--v-oscuro);
-}
-
-.vio-arco__punta {
-  bottom: -3px;
-  left: -2px;
-  right: -2px;
-  height: 12px;
-  background: var(--v-oro);
+.vio-arco.is-rajando .vio-arco__img {
+  filter: drop-shadow(3px 4px 0 rgba(11, 42, 122, .75)) drop-shadow(0 0 16px rgba(255, 210, 63, 1));
 }
 
 /* ---------- Tarjetas (menú y resultados) ---------- */
@@ -525,8 +705,11 @@
   overflow: auto;
   padding: 1.3rem 1.6rem 1.5rem;
   border: 3px solid var(--v-tinta);
-  background: var(--v-fondo);
-  box-shadow: 0 6px 0 rgba(43, 26, 26, .55), 0 14px 30px rgba(0, 0, 0, .35);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .1) 1.2px, transparent 1.6px) 0 0 / 12px 12px,
+    linear-gradient(180deg, #0c3199, var(--v-fondo));
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, .85), 8px 10px 0 4px var(--v-tinta), 0 24px 44px rgba(0, 0, 0, .4);
   text-align: center;
   cursor: default;
 }
@@ -675,16 +858,20 @@
 /* ---------- Pantallas bajas / celular ---------- */
 
 @media (max-height: 560px) {
-  .vio__zona { padding-top: 64px; padding-bottom: 8px; }
-  .vio__campo { width: min(96vw, calc((100svh - 80px) * 2.1)); }
+  .vio__zona { padding-top: 64px; padding-bottom: 20px; }
+  .vio__campo { width: min(80vw, calc((100svh - 100px) * 2.1)); }
   .vio-title { font-size: clamp(2.6rem, 12vh, 4.4rem); }
 }
 
 @media (max-width: 520px) {
   .vio-fin { flex-direction: column-reverse; }
   .vio-fin__datos { width: 100%; }
+  .vio__campo { width: 84vw; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vio-hint { animation: none; }
+  .vio-hint,
+  .vio::before,
+  .vio-deco--disco,
+  .vio-estrella { animation: none; }
 }

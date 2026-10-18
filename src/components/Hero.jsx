@@ -1,3 +1,4 @@
+
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -55,39 +56,34 @@ export default function Hero({ revealed }) {
 
   const isPlaying = useRef(false);
   const startedRef = useRef(false);
-  const musicaFondo = useRef(false); // Danse desbloqueada y sonando de fondo
-  const juegoActivo = useRef(false); // el minijuego está en curso
+  const musicaFondo = useRef(false);
+  const juegoActivo = useRef(false);
   const laferteAudio = useRef(null);
-  const laferteDesbloqueada = useRef(false); // ya salió el aviso / entrada en la lista
+  const laferteDesbloqueada = useRef(false);
 
   const crumpleRef = useRef(null);
   const sheetRef = useRef(null);
   const dispRef = useRef(null);
 
-  // Recorrido de la cámara (se calcula en measureCamera)
-  const camEnd = useRef(0); // px que baja la cámara en total
-  const camRatio = useRef(1); // px de scroll por cada px que baja la cámara
+  // Recorrido de la cámara
+  const camEnd = useRef(0);
+  const camRatio = useRef(1);
 
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
 
   // ---------------------------------------------------------
-  // Mide hasta dónde debe bajar la cámara para llegar al final de
-  // la escena Multimedia, y alarga el scroll del hero en esa
-  // proporción (así la velocidad de Inicio y Sobre mí no cambia).
+  // Mide el recorrido de la cámara hasta Multimedia
   // ---------------------------------------------------------
   const measureCamera = () => {
     const el = root.current;
     if (!el) return;
 
     const vh = window.innerHeight;
-    const t0 = vh * (2 + ABOUT_EXTRA); // recorrido original (hasta Sobre mí)
+    const t0 = vh * (2 + ABOUT_EXTRA);
     const frame = el.querySelector('.frame--multimedia');
     const proyectos = el.querySelector('.frame--projects');
 
-    // Posición y alto de la escena Multimedia, calculados aquí para que
-    // no dependan del orden / especificidad del CSS (misma lógica que
-    // --fw y --scene-unit del .hero).
     if (frame) {
       const vertical = window.matchMedia('(max-aspect-ratio: 6/5)').matches;
       const fw = Math.min(window.innerWidth, vh * (vertical ? 0.5 : 2));
@@ -97,15 +93,17 @@ export default function Hero({ revealed }) {
 
       frame.style.top = `${top}px`;
       frame.style.height = `${h}px`;
-      if (proyectos) proyectos.style.top = `${top + h * 0.92}px`;
+
+      if (proyectos) {
+        proyectos.style.top = `${top + h * 0.92}px`;
+      }
     }
 
-    // Scroll original (Inicio → Sobre mí), calculado con las mismas
-    // fórmulas del CSS para no depender de la altura que tenga el hero.
     const esVertical = window.matchMedia('(max-aspect-ratio: 6/5)').matches;
     const fwBase = Math.min(window.innerWidth, vh * (esVertical ? 0.5 : 2));
     const unitBase = esVertical ? fwBase / 2 : vh;
     const s0 = esVertical ? (2 + ABOUT_EXTRA) * unitBase : 2 * vh;
+
     camRatio.current = s0 / t0;
 
     const t1 = frame
@@ -115,30 +113,38 @@ export default function Hero({ revealed }) {
     camEnd.current = t1;
 
     const extra = (t1 - t0) * camRatio.current;
+
     el.style.setProperty('--mm-scroll', `${extra}px`);
-    // La altura se fija aquí también: así el scroll siempre alcanza
-    // hasta el final de Multimedia, sin importar el CSS.
     el.style.height = `${vh + s0 + extra}px`;
   };
 
   // ---------------------------------------------------------
-  // Utilidades de audio / vinilo (solo usan refs y setters estables)
+  // Utilidades de audio y vinilo
   // ---------------------------------------------------------
   const detenerLaferte = () => {
     const audio = laferteAudio.current;
     if (!audio) return;
+
     audio.pause();
     audio.currentTime = 0;
   };
 
-  // Desbloquea a Laferte en la lista (Canciones ignora los repetidos)
+  // Desbloquea Laferte en la lista de canciones
   const desbloquearLaferte = () => {
     laferteDesbloqueada.current = true;
+
     window.dispatchEvent(
-      new CustomEvent('cancion-desbloqueada', { detail: { id: 'laferte' } })
+      new CustomEvent('cancion-desbloqueada', {
+        detail: { id: 'laferte' },
+      })
     );
+
+    
+    
   };
 
+  
+  
   const encenderDisco = () => {
     startedRef.current = true;
     setStarted(true);
@@ -177,7 +183,6 @@ export default function Hero({ revealed }) {
 
   // ---------------------------------------------------------
   // AUDIO: Laferte antes de desbloquear Danse Macabre
-  // Un solo efecto maneja todos los eventos de música.
   // ---------------------------------------------------------
   useEffect(() => {
     const audio = new Audio(laferte);
@@ -202,13 +207,12 @@ export default function Hero({ revealed }) {
       }
     };
 
-    // El minijuego terminó sin ganar: el vinilo vuelve a estar libre.
+    // El minijuego terminó sin ganar.
     const onJuegoFin = () => {
       juegoActivo.current = false;
     };
 
-    // El usuario toca el piano o hace clic fuera del vinilo:
-    // Laferte se pausa (sin reiniciar) y el vinilo deja de girar.
+    // El piano pausa Laferte y detiene el vinilo.
     const onMusicaLibre = () => {
       if (musicaFondo.current || juegoActivo.current) return;
 
@@ -228,14 +232,17 @@ export default function Hero({ revealed }) {
       }
     };
 
-    // Danse desbloqueada: pasa a ser la música de fondo y Laferte no vuelve a sonar.
+    // Danse desbloqueada: pasa a ser la música de fondo.
     const onMusicaFondo = () => {
       musicaFondo.current = true;
       juegoActivo.current = false;
+
       detenerLaferte();
 
       window.dispatchEvent(
-        new CustomEvent('cancion-desbloqueada', { detail: { id: 'danse' } })
+        new CustomEvent('cancion-desbloqueada', {
+          detail: { id: 'danse' },
+        })
       );
 
       if (!startedRef.current) {
@@ -273,11 +280,52 @@ export default function Hero({ revealed }) {
     };
   }, []);
 
+  // ---------------------------------------------------------
+  // CAMBIO 1: sincroniza el vinilo con Canciones.jsx
+  // ---------------------------------------------------------
+  useEffect(() => {
+    const sincronizarVinilo = (e) => {
+      const activo = Boolean(e.detail?.sonando);
+      const id = e.detail?.id;
+
+      // Canciones.jsx reproduce los MP3 locales.
+      // Detenemos el audio antiguo de Hero para evitar mezclas.
+      if (id && id !== 'danse') detenerLaferte();
+
+      isPlaying.current = activo;
+      setPlaying(activo);
+
+      if (activo) {
+        startedRef.current = true;
+        setStarted(true);
+      }
+
+      if (spin.current) {
+        if (activo) spin.current.play();
+
+        gsap.to(spin.current, {
+          timeScale: activo ? 1 : 0,
+          duration: activo ? 0.45 : 0.25,
+          ease: 'power2.out',
+        });
+      }
+    };
+
+    window.addEventListener('vinilo-estado', sincronizarVinilo);
+
+    return () => {
+      window.removeEventListener('vinilo-estado', sincronizarVinilo);
+    };
+  }, []);
+
+  // ---------------------------------------------------------
   // Preparar la profundidad de las capas 3D
+  // ---------------------------------------------------------
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
       gsap.utils.toArray('.layer').forEach((layer) => {
         const z = parseFloat(layer.dataset.z) || 0;
+
         const scale = layer.dataset.comp
           ? (PERSP / (PERSP - z)) * 1.2
           : 1;
@@ -291,7 +339,9 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, []);
 
+  // ---------------------------------------------------------
   // Animación de entrada y movimiento de los elementos del inicio
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!revealed) return;
 
@@ -437,12 +487,12 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, [revealed]);
 
-  // La cámara baja mientras el escenario conserva su transformación 3D
+  // ---------------------------------------------------------
+  // La cámara baja conservando la transformación 3D
+  // ---------------------------------------------------------
   useLayoutEffect(() => {
     if (!revealed || reduce) return;
 
-    // Calcula el recorrido (Inicio → Sobre mí → Multimedia) y lo
-    // recalcula en cada refresh de ScrollTrigger (resize, rotación...)
     measureCamera();
     ScrollTrigger.addEventListener('refreshInit', measureCamera);
 
@@ -468,7 +518,9 @@ export default function Hero({ revealed }) {
     };
   }, [revealed]);
 
+  // ---------------------------------------------------------
   // Transición de papel arrugado entre Inicio y Sobre mí
+  // ---------------------------------------------------------
   useLayoutEffect(() => {
     if (!revealed || reduce) return;
 
@@ -608,9 +660,9 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, [revealed]);
 
-  // Escena 3 · Multimedia: las capas aparecen de arriba hacia abajo
-  // a medida que la cámara baja (la barra de cada habilidad se llena).
-  // Va después del efecto de la cámara porque usa camRatio.
+  // ---------------------------------------------------------
+  // Escena 3: Multimedia
+  // ---------------------------------------------------------
   useLayoutEffect(() => {
     if (!revealed) return;
 
@@ -627,8 +679,6 @@ export default function Hero({ revealed }) {
       const vh = window.innerHeight;
       const clamp = gsap.utils.clamp(0, 0.93);
 
-      // Ventana de scroll: desde que el borde superior de la hoja asoma
-      // (85% de la pantalla) hasta que su centro llega al centro.
       const len = 0.5 * H + 0.35 * vh;
 
       const tl = gsap.timeline({
@@ -679,7 +729,9 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, [revealed]);
 
-  // Escena 3 · pequeños movimientos de las piezas
+  // ---------------------------------------------------------
+  // Escena 3: movimientos de las piezas
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!revealed || reduce) return;
 
@@ -730,7 +782,9 @@ export default function Hero({ revealed }) {
     return () => ctx.revert();
   }, [revealed]);
 
+  // ---------------------------------------------------------
   // Movimiento 3D con ratón, giroscopio o dedo
+  // ---------------------------------------------------------
   useEffect(() => {
     if (reduce) return;
 
@@ -793,7 +847,7 @@ export default function Hero({ revealed }) {
                   listen(window, 'deviceorientation', onGyro);
                 }
               })
-              .catch(() => { });
+              .catch(() => {});
           } else {
             listen(window, 'deviceorientation', onGyro);
           }
@@ -824,6 +878,9 @@ export default function Hero({ revealed }) {
     };
   }, []);
 
+  // ---------------------------------------------------------
+  // Reproducción de Laferte como respaldo
+  // ---------------------------------------------------------
   const reproducirLaferte = async () => {
     try {
       await laferteAudio.current?.play();
@@ -832,10 +889,22 @@ export default function Hero({ revealed }) {
     }
   };
 
-  // El vinilo controla la canción activa
+  // ---------------------------------------------------------
+  // CAMBIO 2: el vinilo delega en Canciones.jsx cuando está montado
+  // ---------------------------------------------------------
   const toggleVinyl = async () => {
-    // Primer clic: gira el disco y suena Laferte (si el juego no ha empezado
-    // ni se ha desbloqueado Danse Macabre).
+    // Canciones.jsx controla el audio seleccionado.
+    // El vinilo grande puede controlar cualquiera de las seis pistas.
+    const controlCanciones = window.__portafolioCancionesVinilo;
+
+    if (controlCanciones?.toggle) {
+      if (!startedRef.current) encenderDisco();
+
+      controlCanciones.toggle();
+      return;
+    }
+
+    // Respaldo si Hero se utiliza sin el componente Canciones.
     if (!startedRef.current) {
       encenderDisco();
 
@@ -847,11 +916,8 @@ export default function Hero({ revealed }) {
       return;
     }
 
-    // Mientras el minijuego está activo, el vinilo no inicia otra canción.
     if (juegoActivo.current && !musicaFondo.current) return;
 
-    // Danse ya es la música de fondo y Laferte aún no estaba desbloqueada:
-    // este clic solo la desbloquea (no suena, no pausa Danse).
     if (musicaFondo.current && !laferteDesbloqueada.current) {
       desbloquearLaferte();
       return;
@@ -873,14 +939,12 @@ export default function Hero({ revealed }) {
     }
 
     if (musicaFondo.current) {
-      // Danse ya es la música de fondo: el vinilo la pausa / reanuda.
       window.dispatchEvent(
         new CustomEvent('musica-control', {
           detail: { sonando: next },
         })
       );
     } else if (laferteAudio.current) {
-      // Antes del desbloqueo, el vinilo controla Laferte.
       if (next) {
         desbloquearLaferte();
         await reproducirLaferte();
@@ -890,15 +954,24 @@ export default function Hero({ revealed }) {
     }
   };
 
+  // ---------------------------------------------------------
+  // Efectos del puntero sobre el vinilo
+  // ---------------------------------------------------------
   const vinylEnter = () => {
     if (spin.current && isPlaying.current && !reduce) {
-      gsap.to(spin.current, { timeScale: 3, duration: 0.5 });
+      gsap.to(spin.current, {
+        timeScale: 3,
+        duration: 0.5,
+      });
     }
   };
 
   const vinylLeave = () => {
     if (spin.current && isPlaying.current && !reduce) {
-      gsap.to(spin.current, { timeScale: 1, duration: 0.8 });
+      gsap.to(spin.current, {
+        timeScale: 1,
+        duration: 0.8,
+      });
     }
   };
 
@@ -926,6 +999,9 @@ export default function Hero({ revealed }) {
     });
   };
 
+  // ---------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------
   return (
     <header
       className="hero"
@@ -935,10 +1011,7 @@ export default function Hero({ revealed }) {
     >
       <div className="stage-wrap">
         <div className="stage" ref={stage}>
-          <div
-            className="camera-track"
-            ref={cameraTrack}
-          >
+          <div className="camera-track" ref={cameraTrack}>
             <div
               className="layer l-bg"
               data-z="-320"
@@ -1059,6 +1132,7 @@ export default function Hero({ revealed }) {
                   Diseño gráfico, experiencias digitales y exploración 3D.
                 </p>
               </div>
+
               <div className="scene-orbit scene-orbit--projects" />
             </div>
           </div>
