@@ -4,6 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Player from './Player.jsx';
 import SobreMi from './SobreMi.jsx';
 import Multimedia from './Multimedia.jsx';
+import Proyectos from './Proyectos.jsx';
 
 import fondo from '../assets/fondo.png';
 import hoja from '../assets/hoja.png';
@@ -90,7 +91,7 @@ export default function Hero({ revealed }) {
   const [started, setStarted] = useState(false);
 
   // ---------------------------------------------------------
-  // Mide el recorrido de la cámara hasta Multimedia
+  // Mide el recorrido de la cámara hasta Proyectos (última escena)
   // ---------------------------------------------------------
   const measureCamera = () => {
     const el = root.current;
@@ -132,6 +133,7 @@ export default function Hero({ revealed }) {
       frame.style.top = `${top}px`;
       frame.style.height = `${h}px`;
 
+      // Proyectos empieza al 92% de Multimedia (su alto lo da el CSS)
       if (proyectos) {
         proyectos.style.top = `${top + h * 0.92}px`;
       }
@@ -144,16 +146,22 @@ export default function Hero({ revealed }) {
 
     camRatio.current = ratio;
 
-    const t1 = frame
+    // Fin del recorrido de Multimedia (--mm-scroll sigue midiendo solo esto)
+    const tMm = frame
       ? Math.max(t0, frame.offsetTop + frame.offsetHeight - vh)
       : t0;
 
+    // Fin del recorrido total: hasta el final de Proyectos
+    const last = proyectos || frame;
+
+    const t1 = last
+      ? Math.max(tMm, last.offsetTop + last.offsetHeight - vh)
+      : tMm;
+
     camEnd.current = t1;
 
-    const extra = (t1 - t0) * camRatio.current;
-
-    el.style.setProperty('--mm-scroll', `${extra}px`);
-    el.style.height = `${vh + s0 + extra}px`;
+    el.style.setProperty('--mm-scroll', `${(tMm - t0) * camRatio.current}px`);
+    el.style.height = `${vh + s0 + (t1 - t0) * camRatio.current}px`;
   };
 
   // Rango de scroll de la transición "hoja que se rompe".
@@ -191,13 +199,8 @@ export default function Hero({ revealed }) {
         detail: { id: 'laferte' },
       })
     );
-
-    
-    
   };
 
-  
-  
   const encenderDisco = () => {
     startedRef.current = true;
     setStarted(true);
@@ -714,67 +717,75 @@ export default function Hero({ revealed }) {
   }, [revealed]);
 
   // ---------------------------------------------------------
-  // Escena 3: Multimedia
+  // Escenas 3 y 4: Multimedia y Proyectos
+  // (las piezas entran con el scroll)
   // ---------------------------------------------------------
   useLayoutEffect(() => {
     if (!revealed) return;
 
-    const frame = root.current?.querySelector('.frame--multimedia');
-    if (!frame) return;
+    const frames = ['.frame--multimedia', '.frame--projects']
+      .map((sel) => root.current?.querySelector(sel))
+      .filter(Boolean);
+
+    if (!frames.length) return;
 
     if (reduce) {
-      gsap.set(frame.querySelectorAll('.layer .in'), { autoAlpha: 1 });
+      frames.forEach((f) =>
+        gsap.set(f.querySelectorAll('.layer .in'), { autoAlpha: 1 })
+      );
       return;
     }
 
     const ctx = gsap.context(() => {
-      const H = frame.offsetHeight || 1;
-      const vh = window.innerHeight;
-      const clamp = gsap.utils.clamp(0, 0.93);
+      frames.forEach((frame) => {
+        const H = frame.offsetHeight || 1;
+        const vh = window.innerHeight;
+        const clamp = gsap.utils.clamp(0, 0.93);
 
-      const len = 0.5 * H + 0.35 * vh;
+        const len = 0.5 * H + 0.35 * vh;
 
-      const tl = gsap.timeline({
-        defaults: { immediateRender: false },
-        scrollTrigger: {
-          trigger: root.current,
-          start: () =>
-            `top+=${camRatio.current * (frame.offsetTop - window.innerHeight * 0.85)} top`,
-          end: () =>
-            `top+=${camRatio.current *
-            (frame.offsetTop + frame.offsetHeight * 0.5 - window.innerHeight * 0.5)
-            } top`,
-          scrub: 0.8,
-          invalidateOnRefresh: true,
-        },
-      });
-
-      gsap.utils.toArray(frame.querySelectorAll('.layer')).forEach((capa) => {
-        const inner = capa.querySelector('.in');
-        if (!inner) return;
-
-        const w = clamp((capa.offsetTop - vh * 0.1) / len);
-
-        tl.fromTo(
-          inner,
-          { autoAlpha: 0, y: 70, scale: 0.85 },
-          {
-            autoAlpha: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.07,
-            ease: 'back.out(1.4)',
+        const tl = gsap.timeline({
+          defaults: { immediateRender: false },
+          scrollTrigger: {
+            trigger: root.current,
+            start: () =>
+              `top+=${camRatio.current * (frame.offsetTop - window.innerHeight * 0.85)} top`,
+            end: () =>
+              `top+=${camRatio.current *
+              (frame.offsetTop + frame.offsetHeight * 0.5 - window.innerHeight * 0.5)
+              } top`,
+            scrub: 0.8,
+            invalidateOnRefresh: true,
           },
-          w
-        );
+        });
 
-        inner.querySelectorAll('.mm-bar__fill').forEach((fill, i) => {
+        gsap.utils.toArray(frame.querySelectorAll('.layer')).forEach((capa) => {
+          const inner = capa.querySelector('.in');
+          if (!inner) return;
+
+          const w = clamp((capa.offsetTop - vh * 0.1) / len);
+
           tl.fromTo(
-            fill,
-            { scaleX: 0 },
-            { scaleX: 1, duration: 0.06, ease: 'power2.out' },
-            w + 0.05 + i * 0.015
+            inner,
+            { autoAlpha: 0, y: 70, scale: 0.85 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.07,
+              ease: 'back.out(1.4)',
+            },
+            w
           );
+
+          inner.querySelectorAll('.mm-bar__fill').forEach((fill, i) => {
+            tl.fromTo(
+              fill,
+              { scaleX: 0 },
+              { scaleX: 1, duration: 0.06, ease: 'power2.out' },
+              w + 0.05 + i * 0.015
+            );
+          });
         });
       });
     }, root);
@@ -1177,16 +1188,8 @@ export default function Hero({ revealed }) {
             </div>
 
             {/* ESCENA 4: PROYECTOS */}
-            <div className="frame frame--projects">
-              <div className="scene-content scene-content--projects">
-                <span>03 / PROYECTOS</span>
-                <h2>Ideas que toman forma.</h2>
-                <p>
-                  Diseño gráfico, experiencias digitales y exploración 3D.
-                </p>
-              </div>
-
-              <div className="scene-orbit scene-orbit--projects" />
+            <div className="frame frame--projects" id="proyectos">
+              <Proyectos />
             </div>
           </div>
         </div>

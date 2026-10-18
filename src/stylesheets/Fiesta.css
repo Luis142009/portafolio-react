@@ -1,0 +1,477 @@
+/* =========================================================
+   MODO FIESTA · estilo portafolio
+   Misma estética del reto de ritmo y la barra de carga:
+   azules, bordes tinta, sombras duras, puntitos, Titan,
+   oro y cian. Todo cuelga de body.party-on (lo pone Fiesta.jsx).
+   Los nombres de clase son los mismos: no hay que tocar el JSX.
+   ========================================================= */
+
+@font-face {
+  font-family: "Titan";
+  src: url("../assets/titan.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.fiesta__btn,
+.fiesta__luces,
+.fiesta__bola,
+.fiesta__globos,
+.fiesta__titulo,
+.fiesta__cinta {
+  --f-azul: #1b6fe0;
+  --f-azul-2: #0879e8;
+  --f-azul-3: #168ff0;
+  --f-oscuro: #0b2a7a;
+  --f-fondo: #07226e;
+  --f-cian: #2fd4ff;
+  --f-oro: #ffd23f;
+  --f-tinta: #2b1a1a;
+  --f-titulo: "Titan", var(--font-title, "Arial Black"), sans-serif;
+}
+
+/* ---------- Botón ---------- */
+
+.fiesta__btn {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 1500;
+  display: inline-flex;
+  align-items: center;
+  gap: .5em;
+  padding: .55em 1.2em .55em .9em;
+  border: 3px solid var(--f-tinta);
+  border-radius: 14px;
+  background: var(--f-oro);
+  color: var(--f-tinta);
+  box-shadow: 0 6px 0 rgba(43, 26, 26, .55), 0 14px 30px rgba(0, 0, 0, .25);
+  font-family: var(--f-titulo);
+  font-size: clamp(.85rem, 3.4vw, 1.1rem);
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, bottom .4s ease;
+}
+
+.fiesta__btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 9px 0 rgba(43, 26, 26, .55), 0 18px 34px rgba(0, 0, 0, .3);
+}
+
+.fiesta__btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(43, 26, 26, .55);
+}
+
+.fiesta__btn:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Encendido: azul eléctrico con brillo que corre y puntitos */
+.fiesta__btn.is-on {
+  color: #fff;
+  text-shadow: 0 2px 0 var(--f-tinta);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .25) 1.2px, transparent 1.8px) 0 0 / 8px 8px,
+    linear-gradient(90deg, var(--f-azul), var(--f-cian), var(--f-oro), var(--f-cian), var(--f-azul));
+  background-size: 8px 8px, 300% 100%;
+  animation: fiestaArcoiris 2.5s linear infinite;
+}
+
+body.party-on .fiesta__btn {
+  bottom: 50px; /* sube para no taparse con la cinta */
+}
+
+@keyframes fiestaArcoiris {
+  to {
+    background-position: 0 0, 300% 0;
+  }
+}
+
+/* Mientras carga el portafolio no se ve nada de la fiesta */
+body.is-loading .fiesta__btn,
+body.is-loading .fiesta__cinta,
+body.is-loading .fiesta__luces,
+body.is-loading .fiesta__confeti,
+body.is-loading .fiesta__bola,
+body.is-loading .fiesta__globos,
+body.is-loading .fiesta__titulo {
+  display: none;
+}
+
+/* ---------- Solo el FONDO cambia de tono (el contenido no) ----------
+   El tono oscila un poco para que siga viéndose azul, no arcoíris total. */
+
+body.party-on .l-bg img {
+  animation: fiestaTono 6s ease-in-out infinite alternate;
+}
+
+@keyframes fiestaTono {
+  from {
+    filter: hue-rotate(-30deg) saturate(1.25);
+  }
+
+  to {
+    filter: hue-rotate(40deg) saturate(1.45);
+  }
+}
+
+/* ---------- Luces: suaves y solo en los bordes ----------
+   Para más o menos luz cambia --fiesta-luz (0 = nada, 1 = mucha). */
+
+.fiesta__luces {
+  --fiesta-luz: .6;
+
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .6s ease;
+  mix-blend-mode: screen;
+
+  /* el centro queda limpio: la luz solo se ve hacia los bordes */
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 45%, transparent 38%, #000 100%);
+  mask-image: radial-gradient(ellipse 80% 75% at 50% 45%, transparent 38%, #000 100%);
+}
+
+body.party-on .fiesta__luces {
+  opacity: var(--fiesta-luz);
+}
+
+/* Puntitos blancos sobre las luces, como el fondo del portafolio */
+.fiesta__luces::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, .22) 1.2px, transparent 1.8px) 0 0 / 14px 14px;
+}
+
+/* Haces que giran desde las dos esquinas de arriba (cian, oro, azul, blanco) */
+
+.fiesta__haz {
+  position: absolute;
+  top: -45vmax;
+  width: 90vmax;
+  height: 90vmax;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(47, 212, 255, .42)   0deg   8deg, transparent   8deg  52deg,
+    rgba(255, 210, 63, .40)  52deg  60deg, transparent  60deg 104deg,
+    rgba(27, 111, 224, .50) 104deg 112deg, transparent 112deg 156deg,
+    rgba(255, 255, 255, .34) 156deg 163deg, transparent 163deg 208deg,
+    rgba(47, 212, 255, .38) 208deg 216deg, transparent 216deg 260deg,
+    rgba(255, 210, 63, .36) 260deg 267deg, transparent 267deg 360deg
+  );
+}
+
+.fiesta__haz--izq {
+  left: -45vmax;
+  animation: fiestaGiro 9s linear infinite;
+}
+
+.fiesta__haz--der {
+  right: -45vmax;
+  animation: fiestaGiro 11s linear infinite reverse;
+}
+
+@keyframes fiestaGiro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Manchas de color que flotan */
+
+.fiesta__blob {
+  position: absolute;
+  width: 55vmax;
+  height: 55vmax;
+  border-radius: 50%;
+  opacity: .4;
+}
+
+.fiesta__blob--1 {
+  left: -15vmax;
+  bottom: -20vmax;
+  background: radial-gradient(circle, #2fd4ff 0, transparent 65%);
+  animation: fiestaFlota 7s ease-in-out infinite alternate;
+}
+
+.fiesta__blob--2 {
+  right: -15vmax;
+  bottom: -20vmax;
+  background: radial-gradient(circle, #1b6fe0 0, transparent 65%);
+  animation: fiestaFlota 9s ease-in-out infinite alternate-reverse;
+}
+
+.fiesta__blob--3 {
+  left: 25%;
+  top: -28vmax;
+  background: radial-gradient(circle, #ffd23f 0, transparent 65%);
+  animation: fiestaFlota 11s ease-in-out infinite alternate;
+}
+
+@keyframes fiestaFlota {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+
+  to {
+    transform: translate(18vw, -10vh) scale(1.25);
+  }
+}
+
+/* Destello suave al ritmo (2 por segundo, poca intensidad) */
+
+.fiesta__flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(160, 230, 255, .28), transparent 70%);
+  opacity: 0;
+  animation: fiestaPulso .5s ease-out infinite;
+}
+
+@keyframes fiestaPulso {
+  from {
+    opacity: .5;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---------- Bola disco ---------- */
+
+.fiesta__bola {
+  position: fixed;
+  top: 0;
+  right: 10%;
+  z-index: 1150;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  transform: translateY(-420px); /* escondida arriba hasta que GSAP la baja */
+}
+
+.fiesta__bola-cuerda {
+  display: block;
+  width: 4px;
+  height: clamp(40px, 9vh, 90px);
+  border: 1px solid var(--f-tinta);
+  background: #fff;
+}
+
+.fiesta__bola-esfera {
+  position: relative;
+  display: block;
+  width: clamp(64px, 13vw, 110px);
+  aspect-ratio: 1;
+  border: 4px solid var(--f-tinta);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .95) 0 6%, transparent 22%),
+    repeating-linear-gradient(0deg, rgba(11, 42, 122, .45) 0 2px, transparent 2px 12px),
+    repeating-linear-gradient(90deg, rgba(11, 42, 122, .45) 0 2px, transparent 2px 12px),
+    radial-gradient(circle at 50% 50%, #e6f6ff, #7fc4f5 62%, #1b6fe0);
+  box-shadow: 4px 6px 0 rgba(43, 26, 26, .55), 0 0 40px rgba(47, 212, 255, .55);
+}
+
+/* reflejos cian/oro girando sobre la bola */
+.fiesta__bola-esfera::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(47, 212, 255, .6),
+    rgba(255, 210, 63, .55),
+    rgba(27, 111, 224, .6),
+    rgba(255, 255, 255, .5),
+    rgba(47, 212, 255, .6)
+  );
+  mix-blend-mode: overlay;
+  animation: fiestaGiro 3s linear infinite;
+}
+
+/* destellos ✦ alrededor (los anima GSAP) */
+.fiesta__brillo {
+  position: absolute;
+  z-index: 2;
+  color: var(--f-oro);
+  font-style: normal;
+  font-size: clamp(14px, 2.6vw, 24px);
+  line-height: 1;
+  -webkit-text-stroke: 3px var(--f-tinta);
+  paint-order: stroke fill;
+  text-shadow: 0 0 8px #fff, 0 0 16px var(--f-cian);
+  opacity: 0;
+}
+
+.fiesta__brillo--1 { top: -8%;  left: 10%; }
+.fiesta__brillo--2 { top: 18%;  right: -10%; }
+.fiesta__brillo--3 { bottom: 4%; left: -8%; }
+.fiesta__brillo--4 { bottom: -6%; right: 18%; }
+
+/* ---------- Globos (borde tinta + sombra dura) ---------- */
+
+.fiesta__globos {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  overflow: hidden;
+  pointer-events: none; /* solo los globos reciben clic */
+}
+
+.fiesta__globo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  padding: 0;
+  border: 3px solid var(--f-tinta);
+  border-radius: 50% 50% 48% 48% / 56% 56% 44% 44%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .8) 0 8%, transparent 24%),
+    radial-gradient(circle, rgba(255, 255, 255, .2) 1.2px, transparent 1.8px) 0 0 / 9px 9px,
+    var(--c, #2fd4ff);
+  box-shadow: 3px 4px 0 var(--f-oscuro), 0 8px 14px rgba(0, 0, 0, .2);
+  pointer-events: auto;
+  cursor: pointer;
+  will-change: transform;
+}
+
+/* nudo */
+.fiesta__globo::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  width: 12px;
+  height: 10px;
+  margin-left: -6px;
+  background: var(--c, #2fd4ff);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: brightness(.75);
+}
+
+/* cuerda */
+.fiesta__globo::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  width: 2px;
+  height: 56px;
+  margin-left: -1px;
+  background: linear-gradient(rgba(255, 255, 255, .9), rgba(255, 255, 255, 0));
+}
+
+/* ---------- Confeti ---------- */
+
+.fiesta__confeti {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------- Título "¡FIESTA!" (estilo .osu-letra: trazo blanco + sombra azul) ---------- */
+
+.fiesta__titulo {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .03em;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  font-family: var(--f-titulo);
+  font-size: clamp(54px, 16vw, 180px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.fiesta__letra {
+  display: inline-block;
+  color: var(--c, var(--f-cian));
+  -webkit-text-stroke: .1em #fff;
+  paint-order: stroke fill;
+  text-shadow: .05em .05em 0 var(--f-oscuro);
+  will-change: transform;
+}
+
+/* alterna cian y oro como el título del reto de ritmo */
+.fiesta__letra:nth-child(even) {
+  color: var(--c, var(--f-oro));
+}
+
+/* ---------- Cinta "¡FIESTA!" (como la barra de carga) ---------- */
+
+.fiesta__cinta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  overflow: hidden;
+  pointer-events: none;
+  border-top: 3px solid var(--f-tinta);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .16) 1px, transparent 1.6px) 0 0 / 8px 8px,
+    linear-gradient(180deg, var(--f-azul-3), var(--f-azul-2));
+  box-shadow: 0 -4px 0 rgba(43, 26, 26, .35);
+  transform: translateY(100%);
+  transition: transform .4s ease;
+}
+
+body.party-on .fiesta__cinta {
+  transform: translateY(0);
+}
+
+.fiesta__cinta span {
+  display: inline-block;
+  white-space: nowrap;
+  color: #fff;
+  font-family: var(--f-titulo);
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 0 var(--f-tinta), 0 0 4px rgba(0, 0, 0, .2);
+  animation: fiestaCinta 18s linear infinite;
+}
+
+@keyframes fiestaCinta {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- Reducir movimiento: versión suave ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  body.party-on .l-bg img,
+  .fiesta__haz,
+  .fiesta__blob,
+  .fiesta__flash,
+  .fiesta__bola-esfera::after,
+  .fiesta__cinta span,
+  .fiesta__btn.is-on {
+    animation: none;
+  }
+}

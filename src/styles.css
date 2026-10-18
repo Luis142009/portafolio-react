@@ -631,7 +631,7 @@ button {
 }
 
 .scene-orbit--projects {
-  top: 22%;
+  top: 24%;
   right: 8%;
   transform: translateZ(calc(70 * var(--hs))) rotateX(65deg) rotateZ(25deg);
 }
