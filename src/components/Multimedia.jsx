@@ -97,8 +97,9 @@ function Barras({ items }) {
 // HELPERS DE ANIMACIÓN
 // ---------------------------------------------------------
 
-// Revelado tipográfico: igual que el texto de la tarjeta en Sobre mí
-const revelar = (p) =>
+// Revelado tipográfico: igual que el texto de la tarjeta en Sobre mí.
+// v = velocidad (1 = original, 1.5 = 50% más rápido)
+const revelar = (p, v = 1.5) =>
   gsap.fromTo(
     p.querySelectorAll('.mm-word__inner'),
     {
@@ -111,8 +112,8 @@ const revelar = (p) =>
       yPercent: 0,
       autoAlpha: 1,
       rotationX: 0,
-      duration: 0.65,
-      stagger: { each: 0.045, from: 'start' },
+      duration: 0.65 / v,
+      stagger: { each: 0.045 / v, from: 'start' },
       ease: 'power4.out',
     }
   );
@@ -154,34 +155,27 @@ const bambolear = (el, origen = '50% 50%', fuerza = 1) =>
       ease: 'elastic.out(1,.3)',
     });
 
-// Hoja colgante: cae desde arriba y se balancea como papel pegado
-// por la parte de arriba hasta quedarse quieta.
-const caerHoja = (el, lado) =>
+// Hoja colgante: baja desde arriba (con un leve rebase) y luego se
+// balancea desde su borde superior como un péndulo de papel, cada vez
+// menos, hasta quedarse quieta. `lado` (-1 o 1) es el lado desde el que
+// arranca torcida; el primer vaivén va hacia el lado contrario.
+const caerHoja = (el, lado = 1) =>
   gsap
     .timeline()
-    .to(el, {
-      autoAlpha: 1,
-      y: 0,
-      duration: 0.9,
-      ease: 'bounce.out',
-    })
+    .to(el, { autoAlpha: 1, duration: 0.12, ease: 'none' }, 0)
+    .to(el, { yPercent: 0, duration: 0.65, ease: 'back.out(1.15)' }, 0)
     .to(
       el,
       {
-        rotation: 0,
-        duration: 1.8,
-        ease: 'elastic.out(1,.28)',
+        keyframes: [
+          { rotation: -lado * 9, skewX: lado * 2, duration: 0.34 },
+          { rotation: lado * 5, skewX: -lado * 1.2, duration: 0.3 },
+          { rotation: -lado * 2.5, skewX: lado * 0.6, duration: 0.28 },
+          { rotation: 0, skewX: 0, duration: 0.3 },
+        ],
+        ease: 'sine.inOut',
       },
-      0.15
-    )
-    .to(
-      el,
-      {
-        scaleY: 1,
-        duration: 0.5,
-        ease: 'elastic.out(1,.4)',
-      },
-      0.55
+      0.3
     );
 
 // ---------------------------------------------------------
@@ -250,8 +244,9 @@ export default function Multimedia() {
       // Las hojas cuelgan de su borde superior: empiezan arriba y torcidas
       gsap.set(marcos, {
         autoAlpha: 0,
-        y: -260,
-        rotation: (i) => (i ? 16 : -16),
+        yPercent: -115,
+        rotation: (i) => (i ? 14 : -14),
+        skewX: 0,
         transformOrigin: '50% 0%',
       });
 
@@ -276,7 +271,7 @@ export default function Multimedia() {
 
       gsap.set(luisIn, {
         autoAlpha: 0,
-        yPercent: 140,
+        yPercent: 220,
         transformOrigin: '50% 70%',
       });
 
@@ -302,7 +297,7 @@ export default function Multimedia() {
 
         gsap.set(marcos, {
           autoAlpha: 1,
-          y: 0,
+          yPercent: 0,
           rotation: 0,
         });
 
@@ -344,9 +339,9 @@ export default function Multimedia() {
           { width: '0%' },
           {
             width: (i, f) => `${f.parentNode.dataset.lvl}%`,
-            duration: 1.8,
-            ease: 'power2.inOut',
-            stagger: 0.25,
+            duration: 1,
+            ease: 'power2.out',
+            stagger: 0.12,
           }
         );
 
@@ -416,7 +411,7 @@ export default function Multimedia() {
       });
 
       // ---------------------------------------------------
-      // INTRODUCCIÓN
+      // INTRODUCCIÓN (rápida: Luis entra desde el inicio)
       // ---------------------------------------------------
 
       self.add('intro', () => {
@@ -434,22 +429,37 @@ export default function Multimedia() {
           },
         });
 
-        tl.to(globoIn, {
-          autoAlpha: 1,
-          scale: 1,
-          duration: 1,
-          ease: 'back.out(1.7)',
-        })
+        // Luis aparece de golpe y SUBE con calma (se nota el recorrido)
+        tl.to(luisIn, { autoAlpha: 1, duration: 0.2 }, 1.5)
+          .to(
+            luisIn,
+            {
+              yPercent: 0,
+              duration: 1.3,
+              ease: 'back.out(1.3)',
+            },
+            1.5
+          )
+          .to(
+            globoIn,
+            {
+              autoAlpha: 1,
+              scale: 1,
+              duration: 0.6,
+              ease: 'back.out(1.7)',
+            },
+            0
+          )
           .to(
             tituloIn,
             {
               autoAlpha: 1,
               y: 0,
               scale: 1,
-              duration: 0.7,
+              duration: 0.45,
               ease: 'back.out(2)',
             },
-            '-=0.35'
+            0.2
           )
           .to(
             [notaIn, estrellaIn],
@@ -457,73 +467,64 @@ export default function Multimedia() {
               autoAlpha: 1,
               scale: 1,
               rotation: 0,
-              duration: 0.7,
+              duration: 0.5,
               ease: 'back.out(2.2)',
-              stagger: 0.12,
+              stagger: 0.08,
             },
-            '-=0.4'
+            0.3
           )
           // Hojas: caen una tras otra y se balancean
-          .add('hojas', '-=0.2')
+          .add('hojas', 0.25)
           .add(caerHoja(marcos[0], -1), 'hojas')
-          .add(caerHoja(marcos[1], 1), 'hojas+=0.22')
+          .add(caerHoja(marcos[1], 1), 'hojas+=0.12')
           .to(
             tits,
             {
               autoAlpha: 1,
               scale: 1,
-              duration: 0.6,
+              duration: 0.4,
               ease: 'back.out(2.4)',
-              stagger: 0.1,
+              stagger: 0.07,
             },
-            'hojas+=0.7'
+            'hojas+=0.35'
           )
           // Texto: revelado palabra por palabra
-          .add('tipeo', 'hojas+=0.9')
+          .add('tipeo', 'hojas+=0.4')
           .add(revelar(textos[0]), 'tipeo')
-          .add(revelar(textos[1]), 'tipeo+=0.15')
+          .add(revelar(textos[1]), 'tipeo+=0.08')
           .to(
             iconos,
             {
               autoAlpha: 1,
               x: 0,
-              duration: 0.6,
-              stagger: 0.15,
+              duration: 0.4,
+              stagger: 0.1,
             },
-            'tipeo+=0.4'
+            'tipeo+=0.1'
           )
-          .add('cargar', 'tipeo+=0.9')
+          // Barras, bafle y partitura
+          .add('cargar', 'tipeo+=0.3')
           .to(
             barras,
             {
               autoAlpha: 1,
-              duration: 0.3,
-              stagger: 0.1,
+              duration: 0.25,
+              stagger: 0.07,
             },
             'cargar'
           )
-          .add(llenar(fills), 'cargar+=0.2')
+          .add(llenar(fills), 'cargar+=0.1')
           .to(
             [radioIn, claveIn],
             {
               autoAlpha: 1,
               y: 0,
               scale: 1,
-              duration: 0.7,
+              duration: 0.5,
               ease: 'back.out(2)',
-              stagger: 0.15,
+              stagger: 0.1,
             },
-            'cargar+=0.4'
-          )
-          .to(
-            luisIn,
-            {
-              autoAlpha: 1,
-              yPercent: 0,
-              duration: 1.1,
-              ease: 'back.out(1.4)',
-            },
-            'cargar+=1'
+            'cargar'
           );
       });
 
@@ -730,7 +731,8 @@ export default function Multimedia() {
     }, root);
 
     // -----------------------------------------------------
-    // INICIAR ESCENA CUANDO ENTRE EN PANTALLA
+    // INICIAR ESCENA ANTES DE QUE ENTRE EN PANTALLA
+    // (rootMargin: arranca cuando falta ~20% para verla)
     // -----------------------------------------------------
 
     let io;
@@ -745,7 +747,7 @@ export default function Multimedia() {
             ctx.intro();
           }
         },
-        { threshold: 0.2 }
+        { threshold: 0, rootMargin: '0px 0px 20% 0px' }
       );
 
       io.observe(root);

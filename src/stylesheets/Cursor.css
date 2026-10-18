@@ -16,6 +16,11 @@
   font-display: swap;
 }
 
+.cursor{
+  width: 80px !important;
+  height: 80px !important;
+}
+
 :root {
   --p-azul: #1b6fe0;
   --p-oscuro: #0b2a7a;

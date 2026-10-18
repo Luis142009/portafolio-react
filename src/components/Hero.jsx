@@ -19,6 +19,10 @@ import '../stylesheets/Sobremi.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// La barra de direcciones del celular cambia la altura al hacer scroll:
+// no queremos que eso dispare un refresh (hace saltar la página).
+ScrollTrigger.config({ ignoreMobileResize: true });
+
 const PERSP = 1200;
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -29,19 +33,36 @@ const CRUMPLE_START = 0.55;
 const CRUMPLE_END = 1.55;
 const CRUMPLE_DEBUG = false;
 
+// Ancho del marco del Hero con el que calibraste todo (igual que --hdw en el CSS)
+const HERO_DESIGN_WIDTH = 1818;
+
+// Segundos que tarda en terminar la animación de entrada del Hero.
+// Hasta entonces los clics en las piezas no hacen nada.
+const ENTRADA_HERO = 2.8;
+
 // ---------------------------------------------------------
-// CELULAR (pantalla vertical): quita el bloque azul gigante
-// entre el Hero y "Sobre mí".
+// CELULAR (pantalla vertical)
+//
+//   MOBILE_CAM_SPEED = cuánto avanza la cámara por cada pixel de scroll.
+//                      Antes en celular era ~4 (todo pasaba volando).
+//                      1 = el contenido sigue al dedo; 1.5 = un poco más rápido
+//                      que el dedo. Más bajo = más scroll para recorrer todo
+//                      (se siente más lento/controlado); más alto = más rápido.
+//
 //   MOBILE_GAP       = aire (en múltiplos del ancho) entre lo último
 //                      que se ve del Hero y el inicio de "Sobre mí".
 //   MOBILE_MIN_ABOUT = "Sobre mí" nunca empieza antes de esta fracción
-//                      de la altura de pantalla (1 = después de la
-//                      primera pantalla). Bájalo (ej. .7) si quieres
-//                      que suba aún más; súbelo si se ve muy pegado.
+//                      de la altura de pantalla.
 // En escritorio no se usa nada de esto: queda exactamente igual.
 // ---------------------------------------------------------
+const MOBILE_CAM_SPEED = 1.5;
 const MOBILE_GAP = 0.1;
 const MOBILE_MIN_ABOUT = 0;
+
+// Suavizado del scroll (scrub). En celular un valor alto se siente
+// "pesado" porque la escena llega tarde al dedo.
+const SCRUB_CAM = fine ? 1 : 0.25;
+const SCRUB_ESC = fine ? 0.8 : 0.25;
 
 const isVertical = () =>
   window.matchMedia('(max-aspect-ratio: 6/5)').matches;
@@ -99,7 +120,9 @@ export default function Hero({ revealed }) {
 
     const vh = window.innerHeight;
     const vertical = isVertical();
+
     const fw = Math.min(window.innerWidth, vh * (vertical ? 0.5 : 2));
+
     const unit = vertical ? fw / 2 : vh;
 
     const about = el.querySelector('.frame--about');
@@ -139,8 +162,11 @@ export default function Hero({ revealed }) {
       }
     }
 
-    // Misma relación scroll/cámara que antes
-    const ratio = vertical ? unit / vh : 2 / (2 + ABOUT_EXTRA);
+    // Relación scroll/cámara.
+    // Escritorio: igual que antes.
+    // Celular: 1 / MOBILE_CAM_SPEED (la cámara avanza CAM_SPEED px por cada
+    // px de scroll; antes avanzaba ~4, por eso se sentía tan rápido).
+    const ratio = vertical ? 1 / MOBILE_CAM_SPEED : 2 / (2 + ABOUT_EXTRA);
     const t0 = aboutTop + ABOUT_EXTRA * vh;
     const s0 = ratio * t0;
 
@@ -562,7 +588,7 @@ export default function Hero({ revealed }) {
           trigger: root.current,
           start: 'top top',
           end: 'bottom bottom',
-          scrub: 1,
+          scrub: SCRUB_CAM,
           invalidateOnRefresh: true,
         },
       });
@@ -617,7 +643,7 @@ export default function Hero({ revealed }) {
           trigger: root.current,
           start: () => `top+=${crumpleRange()[0]} top`,
           end: () => `top+=${crumpleRange()[1]} top`,
-          scrub: 0.8,
+          scrub: SCRUB_ESC,
           markers: CRUMPLE_DEBUG,
           invalidateOnRefresh: true,
           onToggle: (self) => {
@@ -754,7 +780,7 @@ export default function Hero({ revealed }) {
               `top+=${camRatio.current *
               (frame.offsetTop + frame.offsetHeight * 0.5 - window.innerHeight * 0.5)
               } top`,
-            scrub: 0.8,
+            scrub: SCRUB_ESC,
             invalidateOnRefresh: true,
           },
         });
@@ -847,7 +873,10 @@ export default function Hero({ revealed }) {
   }, [revealed]);
 
   // ---------------------------------------------------------
-  // Movimiento 3D con ratón, giroscopio o dedo
+  // Movimiento 3D con ratón o giroscopio.
+  // Se quitó el movimiento con el dedo (touchmove): se disparaba en
+  // CADA gesto de scroll y movía todas las capas a la vez, que era lo
+  // que hacía el scroll tan pesado en celular.
   // ---------------------------------------------------------
   useEffect(() => {
     if (reduce) return;
@@ -918,21 +947,6 @@ export default function Hero({ revealed }) {
         };
 
         listen(window, 'touchend', enable, { once: true });
-
-        listen(
-          window,
-          'touchmove',
-          (e) => {
-            const touch = e.touches[0];
-            if (!touch) return;
-
-            tilt(
-              (touch.clientX / window.innerWidth) * 2 - 1,
-              (touch.clientY / window.innerHeight) * 2 - 1
-            );
-          },
-          { passive: true }
-        );
       }
     }, root);
 
@@ -941,6 +955,145 @@ export default function Hero({ revealed }) {
       ctx.revert();
     };
   }, []);
+
+  // ---------------------------------------------------------
+  // Interactividad del Hero (mismo patrón que SobreMi):
+  // clic en las piezas → efecto GSAP, sin partículas.
+  // Solo funciona cuando terminó la animación de entrada.
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!revealed || reduce) return;
+
+    const cleanups = [];
+    let ready = false;
+
+    // Espera a que termine la animación de entrada
+    const arm = gsap.delayedCall(ENTRADA_HERO, () => {
+      ready = true;
+    });
+
+    const ctx = gsap.context(() => {
+      const q = (sel) => root.current.querySelector(sel);
+
+      // Las capas tienen pointer-events: none; solo estas piezas reciben clic
+      gsap.set('.l-star .in, .l-title .in, .l-char .in', { pointerEvents: 'auto' });
+
+      const gelatina = (el) =>
+        gsap
+          .timeline()
+          .set(el, { transformOrigin: '50% 50%' })
+          .to(el, { scaleX: 1.2, scaleY: 0.8, duration: 0.12 })
+          .to(el, { scaleX: 0.88, scaleY: 1.12, duration: 0.12 })
+          .to(el, { scale: 1, duration: 0.7, ease: 'elastic.out(1,.35)' });
+
+      const onClick = (el, label, effect) => {
+        if (!el) return;
+
+        const run = () => {
+          if (!ready || el._busy) return;
+
+          const t = effect(el);
+
+          if (t) {
+            el._busy = true;
+            t.eventCallback('onComplete', () => {
+              el._busy = false;
+            });
+          }
+        };
+
+        const onKey = (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            run();
+          }
+        };
+
+        el.style.cursor = 'pointer';
+        el.setAttribute('role', 'button');
+        el.setAttribute('aria-label', label);
+        el.tabIndex = 0;
+        el.addEventListener('click', run);
+        el.addEventListener('keydown', onKey);
+
+        cleanups.push(() => {
+          el.removeEventListener('click', run);
+          el.removeEventListener('keydown', onKey);
+          gsap.killTweensOf(el);
+          el._busy = false;
+        });
+      };
+
+      // Título "Portafolio 2026": gelatina
+      onClick(q('.l-title .in'), 'Portafolio 2026', gelatina);
+
+      // Luis: salto con squash & stretch
+      onClick(q('.l-char .in'), 'Luis', (el) => {
+        const su = q('.frame--home').offsetWidth / HERO_DESIGN_WIDTH;
+
+        return gsap
+          .timeline()
+          .set(el, { transformOrigin: '50% 100%' })
+          .to(el, { scaleX: 1.08, scaleY: 0.9, duration: 0.12, ease: 'power2.out' })
+          .to(el, {
+            y: -90 * su,
+            scaleX: 0.95,
+            scaleY: 1.07,
+            rotation: -4,
+            duration: 0.32,
+            ease: 'power2.out',
+          })
+          .to(el, {
+            y: 0,
+            scaleX: 1.06,
+            scaleY: 0.94,
+            rotation: 0,
+            duration: 0.35,
+            ease: 'bounce.out',
+          })
+          .to(el, { scale: 1, duration: 0.5, ease: 'elastic.out(1,.4)' });
+      });
+
+      // Estrellas: giro completo + pop
+      gsap.utils.toArray('.l-star .in').forEach((star) => {
+        onClick(star, 'Estrella', (el) =>
+          gsap
+            .timeline()
+            .to(el, { rotation: '+=360', scale: 1.3, duration: 0.7, ease: 'back.inOut(2)' })
+            .set(el, { rotation: 0 })
+            .to(el, { scale: 1, duration: 0.5, ease: 'elastic.out(1,.4)' })
+        );
+      });
+
+      // Vinilo: se hunde y rebota (el audio lo sigue manejando toggleVinyl)
+      const vinilo = q('.vinyl');
+
+      if (vinilo) {
+        const hundir = () => {
+          if (!ready) return;
+
+          gsap.fromTo(
+            vinilo,
+            { scale: 0.9 },
+            { scale: 1, duration: 0.6, ease: 'elastic.out(1,.4)', overwrite: 'auto' }
+          );
+        };
+
+        vinilo.addEventListener('pointerdown', hundir);
+
+        cleanups.push(() => {
+          vinilo.removeEventListener('pointerdown', hundir);
+          gsap.killTweensOf(vinilo);
+        });
+      }
+    }, root);
+
+    return () => {
+      arm.kill();
+      cleanups.forEach((fn) => fn());
+      ctx.revert();
+    };
+  }, [revealed]);
 
   // ---------------------------------------------------------
   // Reproducción de Laferte como respaldo
@@ -1039,23 +1192,6 @@ export default function Hero({ revealed }) {
     }
   };
 
-  const poke = () => {
-    if (reduce) return;
-
-    gsap.fromTo(
-      '.l-char .in',
-      { scale: 1 },
-      {
-        scale: 1.08,
-        rotation: 4,
-        duration: 0.18,
-        yoyo: true,
-        repeat: 1,
-        ease: 'power2.out',
-      }
-    );
-  };
-
   const bajar = () => {
     window.scrollTo({
       top: root.current.offsetTop + window.innerHeight,
@@ -1128,12 +1264,7 @@ export default function Hero({ revealed }) {
                 </div>
               </div>
 
-              <div
-                className="layer l-char"
-                data-z="110"
-                data-depth="28"
-                onClick={poke}
-              >
+              <div className="layer l-char" data-z="110" data-depth="28">
                 <div className="in">
                   <img
                     src={personaje}

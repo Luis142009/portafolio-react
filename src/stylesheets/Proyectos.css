@@ -26,6 +26,16 @@
      --p   → distancia de la cámara (px ref.). MENOS = más exagerado
      --fs  → tamaño del texto (px de referencia)
 
+   EL FUEGO VIVO
+   -------------
+   El movimiento (parpadeo, brasas, interacción) está en
+   Proyectos.jsx. Aquí solo se controla cómo se VE:
+     brillo  → opacity/blur/brightness de ".pj-llama__brillo"
+     brasas  → tamaño y color en ".pj-brasa"
+     destello→ color del resplandor en ".pj-llama__destello"
+   La fuerza de las ondas de calor se cambia en el JSX
+   (w * 0.035 dentro de desp.setAttribute('scale', ...)).
+
    Al final hay un bloque para CELULAR (pantallas verticales).
    ========================================================= */
 
@@ -50,6 +60,15 @@
 
   top: calc(var(--mm-fin, 100svh) - var(--sube) * var(--pj));
   height: calc(var(--alto) * var(--pj));
+}
+
+/* Filtro SVG de ondas de calor: no ocupa espacio */
+.frame--projects .pj-filtros {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 /* ---------- Base de las capas con imagen ---------- */
@@ -101,6 +120,52 @@
   height: calc(78 * var(--pj));
 }
 
+/* Capas internas del título (cada una anima algo distinto):
+     .pj-titulo__ent    → entrada con rebote
+     .pj-titulo__mov    → inclinación 3D / gelatina con el mouse
+     .pj-titulo__cuerpo → flotar continuo
+     .pj-titulo__brillo → barrido de luz sobre las letras */
+.frame--projects .pj-titulo__ent,
+.frame--projects .pj-titulo__mov,
+.frame--projects .pj-titulo__cuerpo {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.frame--projects .pj-titulo__mov {
+  will-change: transform;
+}
+
+.frame--projects .pj-titulo__cuerpo {
+  position: relative;
+}
+
+/* La luz solo se ve DENTRO de las letras: usa la misma imagen
+   del título como máscara (--titulo la pone el JSX). */
+.frame--projects .pj-titulo__brillo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 255, 255, .9) 50%,
+    transparent 62%
+  );
+  background-repeat: no-repeat;
+  background-size: 250% 100%;
+  background-position: 150% 0%;
+  -webkit-mask-image: var(--titulo);
+  mask-image: var(--titulo);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
 /* Círculo beige detrás del DJ */
 .frame--projects .pj-circulo {
   left: calc(137 * var(--pj));
@@ -133,7 +198,13 @@
 }
 
 /* =========================================================
-   FUEGO · SOLO DECORACIÓN. Quieto, detrás de los bafles.
+   FUEGO VIVO · detrás de los bafles.
+   Estructura de cada llama:
+     .pj-llama                 → contenedor (filtro de ondas de calor
+                                 y "llamarada" al interactuar)
+       .pj-llama__img          → la llama (parpadea sin parar)
+       .pj-llama__brillo       → copia borrosa que respira
+       .pj-llama__destello     → resplandor de las interacciones
    ========================================================= */
 
 .hero .frame--projects .pj-fuego img {
@@ -152,6 +223,97 @@
   top: calc(320 * var(--pj));
   width: calc(176 * var(--pj));
   height: calc(350 * var(--pj));
+}
+
+.frame--projects .pj-llama {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+  filter: url(#pj-llama-ondas);   /* ondas de calor */
+  pointer-events: none;
+}
+
+.hero .frame--projects .pj-llama .pj-llama__img {
+  position: relative;
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+
+/* Brillo: la misma llama, borrosa y sobreexpuesta, sumada encima.
+   Su opacidad la anima el JS (respira como una brasa). */
+.hero .frame--projects .pj-llama .pj-llama__brillo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: .5;
+  mix-blend-mode: screen;
+  filter: blur(calc(7 * var(--pj))) brightness(1.7) saturate(1.5);
+  pointer-events: none;
+}
+
+/* Destello: resplandor naranja que solo aparece al interactuar */
+.frame--projects .pj-llama__destello {
+  position: absolute;
+  left: 5%;
+  bottom: 4%;
+  width: 90%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 214, 110, .95) 0%,
+    rgba(255, 110, 30, .5) 42%,
+    rgba(255, 70, 10, 0) 70%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* =========================================================
+   BRASAS Y ONDAS · las crea el JS dentro de ".pj-brasas .in"
+   ========================================================= */
+
+.frame--projects .pj-brasas {
+  left: 0;
+  top: 0;
+  width: calc(597 * var(--pj));
+  height: calc(var(--alto) * var(--pj));
+  pointer-events: none;
+}
+
+.frame--projects .pj-brasas .in {
+  position: relative;
+}
+
+.frame--projects .pj-brasa {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(6 * var(--pj));
+  height: calc(6 * var(--pj));
+  min-width: 3px;
+  min-height: 3px;
+  border-radius: 50%;
+  background: #ffb23e;
+  box-shadow: 0 0 calc(8 * var(--pj)) calc(2 * var(--pj)) rgba(255, 140, 30, .8);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Anillo expansivo (golpe de bajo / DROP) */
+.frame--projects .pj-onda {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  border: calc(3 * var(--pj)) solid #ffb23e;
+  border-radius: 50%;
+  box-shadow: 0 0 calc(10 * var(--pj)) rgba(255, 130, 30, .7);
+  opacity: 0;
+  will-change: transform, opacity;
 }
 
 /* =========================================================
@@ -271,6 +433,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .frame--projects .pj-rayo { animation: none; }
+  .frame--projects .pj-llama { filter: none; }
+  .frame--projects .pj-brasas { display: none; }
 }
 
 /* ---------- Forma del rayo: punta en el DJ, ancha afuera ---------- */

@@ -129,22 +129,16 @@
   box-shadow: 0 max(2px, calc(5 * var(--hs))) 0 rgba(26, 28, 43, 0.45);
 }
 
-
 .mm-tools--video .mm-bar {
-
   left: 40%;
   width: 56%;
 }
-
-
 
 .mm-tools--web .mm-bar {
   left: 106%;    /* dónde empiezan, medido desde el borde del bloque */
   width: 176%;   /* largo */
   height: 14%;  /* grosor */
 }
-
-
 
 .mm-bar__fill {
   --corte: 6cqw; /* qué tan inclinado es el corte: más alto = más diagonal */
@@ -188,30 +182,21 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.mm .clicky img {
-  transition: filter .2s;
-}
+/* Hover solo con mouse: en celular se quedaba pegado tras tocar
+   y el drop-shadow sobre imágenes grandes pesa en móviles. */
+@media (hover: hover) and (pointer: fine) {
+  .mm .clicky img {
+    transition: filter .2s;
+  }
 
-.mm .clicky:hover img {
-  filter: brightness(1.08) drop-shadow(0 0 calc(8 * var(--hs)) rgba(255, 255, 255, .7));
+  .mm .clicky:hover img {
+    filter: brightness(1.08) drop-shadow(0 0 calc(8 * var(--hs)) rgba(255, 255, 255, .7));
+  }
 }
 
 .mm .clicky .in:focus-visible {
   outline: 3px dashed var(--gold);
   outline-offset: 4px;
-}
-
-/* Notas y chispas que salen al hacer click */
-.mm-chispa {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 5;
-  font-family: "Smile", "Segoe UI Symbol", sans-serif;
-  font-size: max(18px, calc(26 * var(--hs)));
-  line-height: 1;
-  text-shadow: 0 2px 0 #14142b;
-  pointer-events: none;
 }
 
 /* ---------- Accesibilidad ---------- */

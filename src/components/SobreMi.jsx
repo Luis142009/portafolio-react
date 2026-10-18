@@ -19,7 +19,14 @@ import '../stylesheets/Sobremi.css';
 gsap.registerPlugin(ScrollTrigger);
 
 const ABOUT_TRIGGER = 'top 85%';
-const DESIGN_WIDTH = 2218;
+
+// Ancho de diseño de respaldo. El valor real se lee del CSS (--dw)
+// para que JS y CSS usen SIEMPRE el mismo número.
+const FALLBACK_DESIGN_WIDTH = 1818;
+
+// true  = respeta "reducir movimiento" del sistema (sin animaciones de entrada)
+// false = anima siempre (útil si tu celular tiene ahorro de batería / quitar animaciones)
+const RESPECT_REDUCED_MOTION = true;
 
 // ============================================================
 // HABILIDADES
@@ -122,6 +129,62 @@ export default function SobreMi() {
 
     if (!section) return;
 
+    // --------------------------------------------------------
+    // ESCALA: lee --dw del CSS (mismo valor que usa el CSS)
+    // y garantiza que --fw exista (si el Hero no lo definió
+    // todavía, lo pone con el ancho real del marco).
+    // --------------------------------------------------------
+
+    const getDesignWidth = () => {
+      const v = parseFloat(
+        getComputedStyle(section).getPropertyValue('--dw')
+      );
+      return v > 0 ? v : FALLBACK_DESIGN_WIDTH;
+    };
+
+    const getSu = () => section.offsetWidth / getDesignWidth();
+
+    if (!getComputedStyle(section).getPropertyValue('--fw').trim()) {
+      section.style.setProperty('--fw', `${section.offsetWidth}px`);
+    }
+
+    // --------------------------------------------------------
+    // REFRESH ROBUSTO PARA CELULAR
+    // - imágenes que cargan tarde
+    // - barra de direcciones que cambia la altura
+    // - el evento 'load' ya pudo haber pasado
+    // --------------------------------------------------------
+
+    let refreshRaf = 0;
+
+    const refresh = () => {
+      cancelAnimationFrame(refreshRaf);
+      refreshRaf = requestAnimationFrame(() => ScrollTrigger.refresh());
+    };
+
+    window.addEventListener('load', refresh);
+
+    const imgs = Array.from(section.querySelectorAll('img'));
+
+    imgs.forEach((img) => {
+      if (!img.complete) {
+        img.addEventListener('load', refresh, { once: true });
+      }
+    });
+
+    let ro = null;
+
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(refresh);
+      ro.observe(section);
+    }
+
+    refresh();
+
+    // --------------------------------------------------------
+    // MATCH MEDIA
+    // --------------------------------------------------------
+
     const mm = gsap.matchMedia(section);
 
     mm.add(
@@ -131,9 +194,10 @@ export default function SobreMi() {
         fine: '(hover: hover) and (pointer: fine)',
       },
       (context) => {
-        const { reduce, fine } = context.conditions;
+        const { reduce: reduceMQ, fine } = context.conditions;
+        const reduce = RESPECT_REDUCED_MOTION && reduceMQ;
 
-        const su = section.offsetWidth / DESIGN_WIDTH;
+        const su = getSu();
 
         // ----------------------------------------------------
         // ESTADO BASE
@@ -168,7 +232,7 @@ export default function SobreMi() {
             rotation: 0,
             rotationX: 0,
             rotationY: 0,
-            clearProps: 'transform',
+            yPercent: 0,
           });
 
           gsap.set('.sm-bar__fill', {
@@ -254,7 +318,7 @@ export default function SobreMi() {
             '.l-sm-card .in',
             {
               autoAlpha: 0,
-              x: -220,
+              x: -220 * su,
               rotation: -8,
             },
             {
@@ -324,7 +388,7 @@ export default function SobreMi() {
             '.l-sm-char .in',
             {
               autoAlpha: 0,
-              y: 240,
+              y: 240 * su,
               rotation: 8,
               scale: 0.7,
               transformOrigin: '50% 100%',
@@ -389,7 +453,7 @@ export default function SobreMi() {
             '.l-sm-list .in',
             {
               autoAlpha: 0,
-              x: 260,
+              x: 260 * su,
               rotation: 10,
             },
             {
@@ -448,7 +512,7 @@ export default function SobreMi() {
             {
               autoAlpha: 0,
               scale: 0.6,
-              y: 40,
+              y: 40 * su,
               transformOrigin: '50% 50%',
             },
             {
@@ -471,7 +535,7 @@ export default function SobreMi() {
             '.sm-bar__track',
             {
               autoAlpha: 0,
-              x: -30,
+              x: -30 * su,
             },
             {
               autoAlpha: 1,
@@ -494,35 +558,26 @@ export default function SobreMi() {
           );
 
         // ----------------------------------------------------
-        // SCROLLTRIGGER
+        // ENTRADA: IntersectionObserver (funciona con sticky/3D)
         // ----------------------------------------------------
 
-        const st = ScrollTrigger.create({
-          trigger: section,
-          start: ABOUT_TRIGGER,
-          end: 'bottom top',
+        let entered = false;
 
-          onEnter: () => {
-            tl.timeScale(1).play();
-          },
+        const io = new IntersectionObserver(
+          ([entry]) => {
+            if (entry.isIntersecting) {
+              entered = true;
+              tl.timeScale(1).play();
 
-          onEnterBack: () => {
-            tl.timeScale(1).play();
-
-            if (tl.progress() === 1) {
-              loops.play();
+              if (tl.progress() === 1) loops.play();
+            } else if (entered) {
+              loops.pause();
             }
           },
+          { threshold: 0.05 }
+        );
 
-          onLeave: () => {
-            loops.pause();
-          },
-
-          onLeaveBack: () => {
-            loops.pause();
-            tl.timeScale(2.2).reverse();
-          },
-        });
+        io.observe(section);
 
         // ----------------------------------------------------
         // MICROINTERACCIONES
@@ -560,7 +615,7 @@ export default function SobreMi() {
           ).filter(Boolean);
 
           const onMove = (e) => {
-            const s = section.offsetWidth / DESIGN_WIDTH;
+            const s = getSu();
 
             const nx =
               (e.clientX / window.innerWidth - 0.5) * 2;
@@ -698,7 +753,7 @@ export default function SobreMi() {
 
         // Luis: salto con squash & stretch
         onClick('.l-sm-char .in', 'Luis', (el) => {
-          const s = section.offsetWidth / DESIGN_WIDTH;
+          const s = getSu();
 
           return gsap
             .timeline()
@@ -754,21 +809,20 @@ export default function SobreMi() {
         // ----------------------------------------------------
 
         return () => {
+          io.disconnect();
           cleanups.forEach((fn) => fn());
 
-          st.kill();
           tl.kill();
           loops.kill();
         };
       }
     );
 
-    const refresh = () => ScrollTrigger.refresh();
-
-    window.addEventListener('load', refresh);
-
     return () => {
+      cancelAnimationFrame(refreshRaf);
       window.removeEventListener('load', refresh);
+      imgs.forEach((img) => img.removeEventListener('load', refresh));
+      ro?.disconnect();
       mm.revert();
     };
   }, []);
