@@ -5,6 +5,8 @@ import Player from './Player.jsx';
 import SobreMi from './SobreMi.jsx';
 import Multimedia from './Multimedia.jsx';
 import Proyectos from './Proyectos.jsx';
+import Inlec from './Inlec.jsx';
+import Footer from './Footer.jsx';
 
 import fondo from '../assets/fondo.png';
 import hoja from '../assets/hoja.png';
@@ -107,12 +109,13 @@ export default function Hero({ revealed }) {
   const camEnd = useRef(0);
   const camRatio = useRef(1);
   const aboutTopRef = useRef(0);
+  const tuckRef = useRef(0); // px que el footer se mete debajo de Proyectos
 
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
 
   // ---------------------------------------------------------
-  // Mide el recorrido de la cámara hasta Proyectos (última escena)
+  // Mide el recorrido de la cámara hasta la última escena (Footer)
   // ---------------------------------------------------------
   const measureCamera = () => {
     const el = root.current;
@@ -128,6 +131,7 @@ export default function Hero({ revealed }) {
     const about = el.querySelector('.frame--about');
     const frame = el.querySelector('.frame--multimedia');
     const proyectos = el.querySelector('.frame--projects');
+    const footer = el.querySelector('.frame--footer');
 
     // Dónde empieza "Sobre mí".
     // Escritorio: 2 pantallas (igual que antes).
@@ -160,6 +164,22 @@ export default function Hero({ revealed }) {
       if (proyectos) {
         proyectos.style.top = `${top + h * 0.92}px`;
       }
+
+      // Footer: capa DEBAJO de Proyectos. Se mete --tuck (Footer.css) por
+      // detrás del borde inferior de Proyectos. Su alto lo da el CSS.
+      if (proyectos && footer) {
+        const cs = getComputedStyle(footer);
+        const pj = footer.offsetWidth / 597;
+
+        const tuck = (parseFloat(cs.getPropertyValue('--tuck')) || 0) * pj;
+        const sube = (parseFloat(cs.getPropertyValue('--sube')) || 0) * pj;
+
+        // --tuck solo estira el fondo azul por debajo de Proyectos (las piezas
+        // ya compensan ese valor en el CSS). --sube sí mueve TODO hacia arriba.
+        tuckRef.current = tuck;
+
+        footer.style.top = `${proyectos.offsetTop + proyectos.offsetHeight - tuck - sube}px`;
+      }
     }
 
     // Relación scroll/cámara.
@@ -177,8 +197,8 @@ export default function Hero({ revealed }) {
       ? Math.max(t0, frame.offsetTop + frame.offsetHeight - vh)
       : t0;
 
-    // Fin del recorrido total: hasta el final de Proyectos
-    const last = proyectos || frame;
+    // Fin del recorrido total: hasta el final del Footer
+    const last = footer || proyectos || frame;
 
     const t1 = last
       ? Math.max(tMm, last.offsetTop + last.offsetHeight - vh)
@@ -820,6 +840,63 @@ export default function Hero({ revealed }) {
   }, [revealed]);
 
   // ---------------------------------------------------------
+  // Escena 5: Footer
+  // Tiene su propio trigger (no usa el de Multimedia/Proyectos) porque es
+  // una escena baja: así su entrada termina justo al llegar al final del
+  // scroll, también en celular.
+  // ---------------------------------------------------------
+  useLayoutEffect(() => {
+    if (!revealed) return;
+
+    const frame = root.current?.querySelector('.frame--footer');
+    if (!frame) return;
+
+    if (reduce) {
+      gsap.set(frame.querySelectorAll('.layer .in'), { autoAlpha: 1 });
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      // El fondo azul no se anima: si entrara deslizándose dejaría un hueco
+      gsap.set(frame.querySelector('.ft-fondo .in'), { autoAlpha: 1 });
+
+      const tl = gsap.timeline({
+        defaults: { immediateRender: false },
+        scrollTrigger: {
+          trigger: root.current,
+          start: () =>
+            `top+=${camRatio.current * (frame.offsetTop + tuckRef.current - window.innerHeight * 0.98)} top`,
+          // termina exactamente al final del scroll
+          end: () => `top+=${camRatio.current * (camEnd.current - 2)} top`,
+          scrub: SCRUB_ESC,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      tl.fromTo(
+        frame.querySelector('.ft-globo .in'),
+        { autoAlpha: 0, y: 60, scale: 0.6, transformOrigin: '80% 100%' },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.6)' },
+        0
+      )
+        .fromTo(
+          frame.querySelector('.ft-personaje .in'),
+          { autoAlpha: 0, y: 80, scale: 0.7 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.5)' },
+          0.2
+        )
+        .fromTo(
+          frame.querySelector('.ft-contacto .in'),
+          { autoAlpha: 0, y: 40 },
+          { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out' },
+          0.45
+        );
+    }, root);
+
+    return () => ctx.revert();
+  }, [revealed]);
+
+  // ---------------------------------------------------------
   // Escena 3: movimientos de las piezas
   // ---------------------------------------------------------
   useEffect(() => {
@@ -1096,6 +1173,426 @@ export default function Hero({ revealed }) {
   }, [revealed]);
 
   // ---------------------------------------------------------
+  // FINAL: al conseguir las 6 canciones (evento que manda Canciones.jsx)
+  // TODO el Hero (inicio, sobre mí, multimedia, proyectos y contacto) se
+  // chamusca, se parte en pedazos que caen y se destruye en fuego azul.
+  //   - Lo que se ve en pantalla se parte y cae (de abajo hacia arriba).
+  //   - Lo que está fuera de pantalla desaparece al instante.
+  //   - Al terminar, las secciones quedan ocultas; el fuego azul sigue
+  //     ardiendo en la pantalla.
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!revealed) return undefined;
+
+    const rand = gsap.utils.random;
+    const extras = []; // todo lo que se crea, para limpiarlo al desmontar
+    let ctx = null;
+    let estilo = null;
+    let quemado = false;
+
+    const crear = (padre, estilos, texto) => {
+      const d = document.createElement('div');
+      if (texto) d.textContent = texto;
+      d.setAttribute('aria-hidden', 'true');
+      Object.assign(d.style, { position: 'absolute', pointerEvents: 'none', ...estilos });
+      padre.appendChild(d);
+      extras.push(d);
+      return d;
+    };
+
+    // Los tres pedazos en que se parte cada pieza
+    const TROZOS = [
+      'polygon(0 0, 56% 0, 38% 46%, 0 64%)',
+      'polygon(56% 0, 100% 0, 100% 56%, 62% 38%, 38% 46%)',
+      'polygon(0 64%, 38% 46%, 62% 38%, 100% 56%, 100% 100%, 0 100%)',
+    ];
+
+    const romper = (pieza, H) => {
+      const padre = pieza.parentElement;
+      if (!padre) return;
+
+      TROZOS.forEach((poly, k) => {
+        const trozo = pieza.cloneNode(true);
+
+        trozo.classList.add('hero-trozo');
+        trozo.removeAttribute('data-quemada');
+        trozo.removeAttribute('role');
+        trozo.removeAttribute('aria-label');
+        trozo.tabIndex = -1;
+        trozo.setAttribute('aria-hidden', 'true');
+        trozo.querySelectorAll('[role], [aria-label]').forEach((n) => {
+          n.removeAttribute('role');
+          n.removeAttribute('aria-label');
+        });
+        trozo.querySelectorAll('button, a').forEach((n) => {
+          n.tabIndex = -1;
+        });
+
+        // Se coloca justo encima de la pieza sin mover el resto del diseño
+        Object.assign(trozo.style, {
+          position: 'absolute',
+          margin: '0',
+          right: 'auto',
+          bottom: 'auto',
+          left: `${pieza.offsetLeft}px`,
+          top: `${pieza.offsetTop}px`,
+          width: `${pieza.offsetWidth}px`,
+          height: `${pieza.offsetHeight}px`,
+          clipPath: poly,
+          pointerEvents: 'none',
+        });
+
+        padre.appendChild(trozo);
+        extras.push(trozo);
+
+        const lado = k === 0 ? -1 : k === 1 ? 1 : 0;
+
+        gsap.to(trozo, {
+          x: `+=${lado * rand(60, 170) + rand(-30, 30)}`,
+          y: `+=${H * rand(0.55, 0.95)}`,
+          rotation: `+=${lado * rand(25, 80) + rand(-15, 15)}`,
+          duration: rand(1.1, 1.8),
+          ease: 'power2.in',
+        });
+        gsap.to(trozo, {
+          autoAlpha: 0,
+          duration: 0.5,
+          delay: rand(0.9, 1.3),
+          ease: 'power1.in',
+        });
+      });
+
+      // La pieza original desaparece para siempre (aunque el scroll quiera mostrarla)
+      pieza.dataset.quemada = '1';
+    };
+
+    const quemar = () => {
+      const el = root.current;
+      if (!el) return;
+
+      // Reglas que mantienen todo destruido aunque el scroll siga animando las piezas
+      estilo = document.createElement('style');
+      estilo.textContent = `
+        [data-quemada="1"] { visibility: hidden !important; opacity: 0 !important; }
+        .hero--quemandose, .hero--quemandose * { pointer-events: none !important; }
+        .hero--quemado .frame, .hero--quemado .hero-scroll { visibility: hidden !important; }
+      `;
+      document.head.appendChild(estilo);
+      el.classList.add('hero--quemandose');
+
+      ctx = gsap.context(() => {
+        const Wv = window.innerWidth;
+        const Hv = window.innerHeight;
+
+        // Todas las piezas de todas las escenas (menos el fondo), solo las más externas
+        let piezas = gsap.utils.toArray(
+          el.querySelectorAll('.layer:not(.l-bg) .in, .scene-content--about')
+        );
+        piezas = piezas.filter((a) => !piezas.some((b) => b !== a && b.contains(a)));
+
+        // Se detienen los movimientos de antes
+        spin.current?.kill();
+        piezas.forEach((p) => {
+          gsap.killTweensOf(p);
+          p.querySelectorAll('img').forEach((img) => gsap.killTweensOf(img));
+        });
+
+        // Las que se ven en pantalla se rompen; las demás desaparecen ya
+        const visibles = [];
+
+        piezas.forEach((p) => {
+          const r = p.getBoundingClientRect();
+          const cs = getComputedStyle(p);
+
+          const dentro =
+            r.width > 4 &&
+            r.height > 4 &&
+            r.bottom > 0 &&
+            r.top < Hv &&
+            r.right > 0 &&
+            r.left < Wv &&
+            cs.visibility !== 'hidden' &&
+            parseFloat(cs.opacity) > 0.05;
+
+          if (dentro) visibles.push({ p, r });
+          else p.dataset.quemada = '1';
+        });
+
+        // Se quema de abajo hacia arriba
+        visibles.sort((a, b) => b.r.bottom - a.r.bottom);
+
+        // Capa fija con todo el fuego (cubre la pantalla, esté donde esté el scroll)
+        const fuego = crear(document.body, {
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9500,
+          overflow: 'hidden',
+        });
+
+        // Fondo: se oscurece y se enfría
+        const fondoEl = el.querySelector('.l-bg .in');
+        if (fondoEl) {
+          gsap.to(fondoEl, {
+            filter: 'brightness(0.45) saturate(1.3) hue-rotate(15deg)',
+            duration: 3.5,
+            delay: 0.8,
+            ease: 'power1.inOut',
+          });
+        }
+
+        // Resplandor azul desde abajo + borde oscuro
+        const brillo = crear(fuego, {
+          left: '-10%',
+          right: '-10%',
+          bottom: '-5%',
+          height: '75%',
+          background:
+            'radial-gradient(ellipse at 50% 100%, rgba(40,130,255,.9) 0%, rgba(20,70,255,.45) 38%, rgba(10,30,255,0) 72%)',
+          mixBlendMode: 'screen',
+          opacity: 0,
+        });
+        gsap.to(brillo, { opacity: 1, duration: 2.2, delay: 0.6, ease: 'power2.out' });
+        gsap.to(brillo, {
+          opacity: 0.72,
+          duration: 0.22,
+          delay: 3,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+        });
+
+        const quemadura = crear(fuego, {
+          inset: 0,
+          background:
+            'radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0) 35%, rgba(0,4,24,.6) 100%)',
+          opacity: 0,
+        });
+        gsap.to(quemadura, { opacity: 1, duration: 3, delay: 1, ease: 'power1.inOut' });
+
+        // Llamas azules a lo ancho de la pantalla
+        const N = 26;
+        for (let i = 0; i < N; i += 1) {
+          const w = rand(8, 16);
+          const llama = crear(fuego, {
+            left: `${(i / (N - 1)) * 100 - w / 2 + rand(-2, 2)}%`,
+            bottom: '-6%',
+            width: `${w}%`,
+            height: `${rand(28, 58)}%`,
+            background:
+              'linear-gradient(to top, #0a14ff 0%, #1e6bff 35%, #36d6ff 65%, rgba(200,250,255,0) 100%)',
+            borderRadius: '50% 50% 0 0 / 100% 100% 0 0',
+            filter: 'blur(7px)',
+            mixBlendMode: 'screen',
+            transformOrigin: '50% 100%',
+            opacity: 0.92,
+          });
+
+          gsap.set(llama, { scaleY: 0, scaleX: 0.6 });
+
+          const pico = rand(0.85, 1.25);
+
+          gsap.to(llama, {
+            scaleY: pico,
+            scaleX: 1,
+            duration: rand(1.4, 2.2),
+            delay: 0.5 + rand(0, 1.6),
+            ease: 'power2.out',
+            onComplete: () => {
+              gsap.to(llama, {
+                scaleY: pico * rand(0.7, 0.9),
+                scaleX: rand(0.85, 1.1),
+                skewX: rand(-8, 8),
+                duration: rand(0.18, 0.4),
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut',
+              });
+            },
+          });
+        }
+
+        // Brasas azules que suben
+        for (let i = 0; i < 40; i += 1) {
+          const tam = rand(3, 8);
+          const brasa = crear(fuego, {
+            left: `${rand(0, 100)}%`,
+            bottom: '0%',
+            width: `${tam}px`,
+            height: `${tam}px`,
+            borderRadius: '50%',
+            background: '#6fd0ff',
+            boxShadow: '0 0 8px 2px rgba(40,140,255,.95)',
+            opacity: 0,
+          });
+
+          gsap.fromTo(
+            brasa,
+            { y: 0, x: 0, opacity: 1 },
+            {
+              y: -rand(0.35, 1) * Hv,
+              x: rand(-70, 70),
+              opacity: 0,
+              duration: rand(1.6, 3.2),
+              delay: rand(0.8, 3.5),
+              ease: 'power1.out',
+              repeat: -1,
+            }
+          );
+        }
+
+        // Humo oscuro azulado
+        for (let i = 0; i < 9; i += 1) {
+          const humo = crear(fuego, {
+            left: `${rand(0, 85)}%`,
+            bottom: '15%',
+            width: `${rand(14, 26)}%`,
+            aspectRatio: '1',
+            background:
+              'radial-gradient(circle, rgba(20,28,60,.6), rgba(10,15,40,0) 70%)',
+            filter: 'blur(10px)',
+            opacity: 0,
+          });
+
+          const durHumo = rand(3.5, 6);
+          const retraso = rand(1.5, 5);
+
+          gsap.fromTo(
+            humo,
+            { y: 0, scale: 1 },
+            {
+              y: -rand(0.5, 1) * Hv,
+              scale: 2.2,
+              duration: durHumo,
+              delay: retraso,
+              ease: 'none',
+              repeat: -1,
+            }
+          );
+          // Aparece y se disipa en cada subida
+          gsap.fromTo(
+            humo,
+            { opacity: 0 },
+            {
+              opacity: 0.5,
+              duration: durHumo / 2,
+              delay: retraso,
+              ease: 'sine.inOut',
+              repeat: -1,
+              yoyo: true,
+            }
+          );
+        }
+
+        // Cada pieza: se prende, se chamusca, tiembla, se parte y cae
+        let destello = false;
+
+        visibles.forEach(({ p, r }, i) => {
+          const t = 0.4 + Math.min(i * 0.1, 3.2);
+
+          // Llamitas azules encima de la pieza mientras se quema
+          const cuantas = r.height > 220 ? 2 : 1;
+
+          for (let k = 0; k < cuantas; k += 1) {
+            const tam = Math.max(28, Math.min(90, r.height * rand(0.45, 0.7)));
+            const emoji = crear(
+              fuego,
+              {
+                left: `${r.left + r.width / 2 + rand(-r.width * 0.15, r.width * 0.15)}px`,
+                top: `${r.top + r.height / 2 + rand(-r.height * 0.2, r.height * 0.1)}px`,
+                fontSize: `${tam}px`,
+                lineHeight: 1,
+                transformOrigin: '50% 100%',
+                filter:
+                  'hue-rotate(190deg) saturate(1.8) brightness(1.1) drop-shadow(0 0 10px rgba(60,160,255,.9))',
+              },
+              '🔥'
+            );
+
+            gsap.set(emoji, { xPercent: -50, yPercent: -50, scale: 0, opacity: 0 });
+            gsap
+              .timeline({ delay: t + 0.1 + k * 0.15 })
+              .to(emoji, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' })
+              .to(emoji, {
+                scale: 1.18,
+                rotation: rand(-8, 8),
+                duration: 0.18,
+                repeat: 5,
+                yoyo: true,
+                ease: 'sine.inOut',
+              })
+              .to(emoji, { opacity: 0, scale: 0.4, y: -30, duration: 0.5, ease: 'power1.in' });
+          }
+
+          // Se chamusca (tono azulado quemado)
+          gsap.to(p, {
+            filter: 'brightness(0.4) sepia(1) saturate(3) hue-rotate(170deg)',
+            duration: 1.1,
+            delay: t,
+            ease: 'power1.in',
+          });
+
+          // Tiembla
+          gsap.to(p, {
+            x: '+=5',
+            y: '+=3',
+            rotation: '+=1.5',
+            duration: 0.05,
+            delay: t,
+            repeat: 22,
+            yoyo: true,
+            ease: 'none',
+          });
+
+          // Se parte y cae
+          gsap.delayedCall(t + 1.3, () => {
+            gsap.killTweensOf(p);
+
+            if (!destello) {
+              destello = true;
+              const flash = crear(fuego, { inset: 0, background: '#bfe6ff', opacity: 0 });
+              gsap.fromTo(
+                flash,
+                { opacity: 0.8 },
+                { opacity: 0, duration: 0.6, ease: 'power2.out' }
+              );
+            }
+
+            romper(p, Hv);
+          });
+        });
+
+        // Cuando todo terminó de caer: las escenas quedan ocultas y se limpian los pedazos
+        const ultimo = visibles.length ? 0.4 + Math.min((visibles.length - 1) * 0.1, 3.2) : 0;
+
+        gsap.delayedCall(ultimo + 1.3 + 2.8, () => {
+          el.classList.add('hero--quemado');
+          el.querySelectorAll('.hero-trozo').forEach((n) => n.remove());
+        });
+      }, root);
+    };
+
+    const onTodas = () => {
+      if (quemado) return;
+      quemado = true;
+      quemar();
+    };
+
+    window.addEventListener('todas-las-canciones', onTodas);
+
+    return () => {
+      window.removeEventListener('todas-las-canciones', onTodas);
+      ctx?.revert();
+      estilo?.remove();
+      root.current?.classList.remove('hero--quemandose', 'hero--quemado');
+      extras.forEach((n) => {
+        gsap.killTweensOf(n);
+        n.remove();
+      });
+      extras.length = 0;
+    };
+  }, [revealed]);
+
+  // ---------------------------------------------------------
   // Reproducción de Laferte como respaldo
   // ---------------------------------------------------------
   const reproducirLaferte = async () => {
@@ -1318,6 +1815,13 @@ export default function Hero({ revealed }) {
               <Multimedia />
             </div>
 
+            {/* ESCENA 5: FOOTER
+                Va ANTES de Proyectos en el DOM a propósito: así queda
+                como capa de abajo y Proyectos lo tapa en la zona de solape. */}
+            <div className="frame frame--footer" id="contacto">
+              <Footer />
+            </div>
+
             {/* ESCENA 4: PROYECTOS */}
             <div className="frame frame--projects" id="proyectos">
               <Proyectos />
@@ -1335,6 +1839,9 @@ export default function Hero({ revealed }) {
         <span>SCROLL PARA EXPLORAR</span>
         <span className="hero-scroll__arrow">↓</span>
       </button>
+
+      {/* Ventana INLEC: se abre con el clic en INLEC de Proyectos */}
+      <Inlec />
     </header>
   );
 }

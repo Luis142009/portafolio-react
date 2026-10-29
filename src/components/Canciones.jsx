@@ -9,8 +9,8 @@ import stared from '../assets/starblue.png';
 import monLaferteAudio from '../assets/laferte.mp3';
 import boyDontCryAudio from '../assets/cry.mp3';
 import expectationsAudio from '../assets/expectations.mp3';
-import cancion06Audio from '../assets/quien.mp3';
 import cyberpunkAudio from '../assets/Cyberpunk.mp3';
+import shyAudio from '../assets/shy.mp3';
 
 // ============================================================
 // LISTA DE CANCIONES
@@ -19,87 +19,87 @@ import cyberpunkAudio from '../assets/Cyberpunk.mp3';
 const CANCIONES = [
   {
     id: 'danse',
-    titulo: 'Danse',
-    artista: 'Artista aquí',
-    anio: '2024',
+    titulo: 'Danse Macabre',
+    artista: 'Camille Saint-Saëns',
+    anio: '1875',
     etiqueta: 'La primera',
     reproducible: true,
     tipoReproduccion: 'fondo',
     audioSrc: null,
     portada: null,
-    significado: 'Escribe aquí qué significa esta canción para ti.',
+    significado: 'El diseño te permite convertir ideas, emociones y personajes en algo que las personas pueden ver y experimentar. No se trata solo de decorar, sino de construir un mundo propio.',
     pista: 'Se desbloquea al conseguir 30 aciertos en el piano.',
-    nota: '¡Eso! 30 aciertos en el piano y ya suena Danse. Esta es la primera canción de mi lista.',
+    nota: 'Danse Macabre: una danza entre lo extraño y lo creativo, donde el diseño rompe las reglas y transforma ideas en arte',
   },
   {
     id: 'laferte',
-    titulo: 'Mon Laferte',
+    titulo: 'vi un poema en su locura',
     artista: 'Mon Laferte',
-    anio: '2024',
-    etiqueta: 'Para trabajar',
+    anio: '2026',
+    etiqueta: 'La segunda',
     reproducible: true,
     tipoReproduccion: 'archivo',
     audioSrc: monLaferteAudio,
     portada: null,
-    significado: 'Cuéntales por qué esta canción te acompaña cuando trabajas.',
+    significado: 'La locura de convertir emociones en arte, donde el diseño le da forma a lo que sentimos.',
     pista: 'Haz clic en el vinilo para descubrirla…',
-    nota: 'Encontraste el vinilo. Esta es la que me acompaña cuando trabajo.',
+    nota: 'Vi un poema en su locura: donde las emociones se vuelven arte y el diseño encuentra belleza en el caos.',
   },
   {
     id: 'cry',
     titulo: 'Boy dont Cry',
-    artista: 'Artista aquí',
-    anio: '2024',
-    etiqueta: 'Reto de ritmo',
+    artista: 'The Cure',
+    anio: '1979',
+    etiqueta: 'La tercera',
     reproducible: true,
     tipoReproduccion: 'archivo',
     audioSrc: boyDontCryAudio,
     portada: null,
-    significado: 'Cuéntales qué significa esta canción para ti.',
+    significado: ' significado Boy Don’t Cry representa la precisión y la concentración, donde cada movimiento debe encajar perfectamente con el ritmo, como cada detalle en el diseño.',
     pista: 'Toca la nota musical en Sobre mí y consigue 50 aciertos.',
-    nota: 'Reto de ritmo superado, 50 aciertos. Esta canción tiene su historia.',
+    nota: 'Boy Don’t Cry: precisión, ritmo y coordinación; cada movimiento cuenta, igual que cada detalle en el diseño.',
   },
   {
     id: 'expectations',
     titulo: 'Expectations',
-    artista: 'Artista aquí',
-    anio: '2024',
+    artista: 'Olivia Rodrigo',
+    anio: '2026',
     etiqueta: 'Reto del violín',
     reproducible: true,
-    tipoReproduccion: 'archivo',
+    tipoReproduccion: 'La cuarta',
     audioSrc: expectationsAudio,
     portada: null,
-    significado: 'Escribe aquí qué significa esta canción para ti.',
+    significado: 'entender que cada decisión de diseño debe tener un propósito, como cada nota del violín transmite una emoción.',
     pista: 'Toca la partitura en Multimedia y consigue 40 aciertos en el violín.',
-    nota: '¡40 notas en el violín! Expectations desbloqueada.',
+    nota: 'Expectations: así como el violín necesita precisión para transmitir cada nota, el diseño necesita intención para comunicar cada idea.',
   },
   {
     id: 'cyberpunk',
-    titulo: 'Cyberpunk',
-    artista: 'Cyberpunk',
+    titulo: 'High Forever',
+    artista: '(Marlon Hoffstadt ',
     anio: '2026',
-    etiqueta: 'Modo nocturno',
+    etiqueta: 'La quinta',
     reproducible: true,
     tipoReproduccion: 'archivo',
     audioSrc: cyberpunkAudio,
     portada: null,
-    significado: 'Una canción para entrar en otro mundo y disfrutar de su energía.',
+    significado: 'High Forever representa la intensidad de vivir el momento y dejar una huella que perdure.',
     pista: 'Haz clic en el bafle de Multimedia para descubrirla.',
-    nota: '¡Cyberpunk desbloqueado! Entra en el modo nocturno y disfruta de esta canción.',
+    nota: 'Diseñar con intención es crear contenido que conecte con las personas y permanezca en su memoria, incluso después de verlo.',
   },
   {
-    id: 'song6',
-    titulo: 'Canción 06',
-    artista: 'Artista aquí',
-    anio: '2024',
+    id: 'shy',
+    titulo: 'Shy Girl',
+    artista: 'Haute & Freddy',
+    anio: '2026',
     etiqueta: 'La última',
     reproducible: true,
     tipoReproduccion: 'archivo',
-    audioSrc: cancion06Audio,
+    audioSrc: shyAudio,
     portada: null,
-    significado: 'Escribe aquí qué significa esta canción para ti.',
-    pista: 'Esta canción todavía está bloqueada.',
-    nota: '¡Llegaste a la última canción!',
+    significado: 'Shy Girl representa la timidez y las emociones que cuesta expresar.',
+    pista: 'Haz clic en Luis al final de la página para descubrirla.',
+    nota: 'la sutileza de los pequeños detalles demuestra que no hace falta ser extravagante para destacar en el diseño.',
   },
 ];
 
@@ -397,6 +397,7 @@ export default function Canciones() {
 
   const abiertasRef = useRef(new Set());
   const avisoN = useRef(0);
+  const completasRef = useRef(false); // true cuando ya se avisó que están todas
 
   // ÚNICA instancia de audio para todas las canciones locales.
   const audioRef = useRef(null);
@@ -453,7 +454,17 @@ export default function Canciones() {
   useEffect(() => {
     const onDesbloqueada = (e) => {
       const id = e.detail?.id;
-      if (id) abrirCancion(id);
+      if (!id) return;
+
+      const eraNueva = !abiertasRef.current.has(id);
+
+      abrirCancion(id);
+
+      // Shy empieza a sonar en cuanto se desbloquea (clic en Luis del footer).
+      // Corre dentro del mismo clic, así que el navegador permite el audio.
+      if (id === 'shy' && eraNueva) {
+        alternarPorIdRef.current?.('shy');
+      }
     };
 
     const onMusicaFondo = (e) => {
@@ -849,6 +860,21 @@ export default function Canciones() {
   const cancionAviso = aviso
     ? CANCIONES.find((c) => c.id === aviso.id)
     : null;
+
+  // ----------------------------------------------------------
+  // FINAL: con las 6 canciones desbloqueadas (y ya cerrado el cartel de la
+  // última), avisa al Hero para que se rompa y se prenda fuego.
+  // ----------------------------------------------------------
+
+  useEffect(() => {
+    if (completasRef.current) return;
+    if (abiertas.length < CANCIONES.length || avisos.length > 0) return;
+
+    completasRef.current = true;
+    setAbierto(false); // por si la lista de canciones estaba abierta
+
+    window.dispatchEvent(new CustomEvent('todas-las-canciones'));
+  }, [abiertas, avisos]);
 
   // ----------------------------------------------------------
   // INTERFAZ

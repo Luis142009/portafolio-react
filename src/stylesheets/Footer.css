@@ -1,0 +1,230 @@
+/* =========================================================
+   ESCENA 5 · FOOTER ("gracias por ver")
+   Misma lógica responsive que Proyectos: todo cuelga del ancho
+   del marco (--fw). El lienzo mide 597 de ancho y
+   calc(N * var(--pj)) escala cada número a cualquier pantalla.
+
+   CÓMO EDITAR
+   -----------
+   Cada pieza tiene su bloque con left, top, width y height
+   (en px de referencia). NUNCA pongas px sueltos ahí.
+   --alto y --fs van SIN unidad.
+
+   El top de la escena lo pone Hero.jsx en línea (debajo de
+   Proyectos), igual que con Proyectos.
+
+   POSICIÓN VERTICAL
+   -----------------
+   --tuck  → solo estira el fondo azul por detrás de Proyectos.
+             NO mueve las piezas (ya lo compensan).
+   --sube  → sube TODO el footer (fondo y piezas).
+   --alto  → alto del footer. Lo que se ve debajo del borde de
+             Proyectos es  --alto - --sube.
+             Cada pieza queda a  (su top - --sube)  px de ese borde:
+             si (top - sube) es negativo, esa parte queda TAPADA
+             por Proyectos.
+   ========================================================= */
+
+.hero .frame--footer {
+  --pj: calc(var(--fw) / 597);
+  --alto: 350;
+  --tuck: 60;
+  --sube: 70;   /* sube todo el footer 70 px de referencia */
+  --azul: #1070ee;
+
+  z-index: 1;
+  height: calc((var(--alto) + var(--tuck)) * var(--pj));
+}
+
+/* Proyectos queda POR ENCIMA del footer */
+.hero .frame--projects {
+  z-index: 2;
+}
+
+/* ---------- Base de las capas ---------- */
+
+.frame--footer .ft .in {
+  width: 100%;
+  height: 100%;
+}
+
+.hero .frame--footer .ft img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* =========================================================
+   PIEZAS  (left / top / width / height)
+   ========================================================= */
+
+/* Fondo azul: ocupa el lienzo y se estira a los lados.
+   El clip-path deja salir solo en horizontal (nunca hacia abajo,
+   para no alargar la página). */
+.frame--footer .ft-fondo {
+  left: 0;
+  top: 0;
+  width: calc(597 * var(--pj));
+  height: calc((var(--alto) + var(--tuck)) * var(--pj));
+}
+
+.frame--footer .ft-fondo .in {
+  position: relative;
+  clip-path: inset(0 -50vw 0 -50vw);
+}
+
+.frame--footer .ft-fondo .in::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -50vw;
+  right: -50vw;
+  background: var(--azul);
+}
+
+/* Globo */
+.frame--footer .ft-globo {
+  left: calc(168 * var(--pj));
+  top: calc((64 + var(--tuck)) * var(--pj));
+  width: calc(320 * var(--pj));
+  height: calc(160 * var(--pj));
+}
+
+.frame--footer .ft-globo__cuerpo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+/* Texto dentro del globo (centrado en la parte alta, lejos de la cola) */
+.frame--footer .ft-globo__texto {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 62%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #14141c;
+  font-family: "Titan", var(--font-title, "Arial Black"), sans-serif;
+  font-size: max(12px, calc(30 * var(--pj)));
+  line-height: 1;
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Cada letra del texto (las anima GSAP en Footer.jsx) */
+.frame--footer .ft-char {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* Luis */
+.frame--footer .ft-personaje {
+  left: calc(252 * var(--pj));
+  top: calc((188 + var(--tuck)) * var(--pj));
+  width: calc(116 * var(--pj));
+  height: calc(124 * var(--pj));
+}
+
+.frame--footer .ft-personaje__btn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;   /* las capas no reciben clic; este botón sí */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.frame--footer .ft-personaje__btn:focus-visible {
+  outline: calc(3 * var(--pj)) solid #fff;
+  outline-offset: calc(2 * var(--pj));
+  border-radius: calc(12 * var(--pj));
+}
+
+/* Contacto */
+.frame--footer .ft-contacto {
+  --fs: 13;   /* tamaño del texto (px de referencia) */
+
+  left: calc(5 * var(--pj));
+  top: calc((152 + var(--tuck)) * var(--pj));
+  width: calc(240 * var(--pj));
+  height: calc(60 * var(--pj));
+}
+
+.frame--footer .ft-contacto p {
+  margin: 0;
+  color: #fff;
+  font-family: "Titan", var(--font-title, "Arial Black"), sans-serif;
+  font-size: max(10px, calc(var(--fs) * var(--pj)));  /* nunca menor a 10px */
+  line-height: 1.7;
+  white-space: nowrap;
+  text-shadow: 0 calc(1 * var(--pj)) 0 rgba(0, 0, 0, .35);
+}
+
+.frame--footer .ft-contacto a {
+  display: inline-block;  /* necesario para que GSAP pueda moverlo en x */
+  color: inherit;
+  text-decoration: none;
+  pointer-events: auto;   /* los enlaces sí reciben clic */
+  transition: color .15s;
+}
+
+.frame--footer .ft-contacto a:hover {
+  color: var(--gold, #f3b64a);
+}
+
+.frame--footer .ft-contacto a:focus-visible {
+  outline: calc(2 * var(--pj)) solid #fff;
+  outline-offset: calc(2 * var(--pj));
+}
+
+/* Zona de toque más grande en pantallas táctiles */
+@media (pointer: coarse) {
+  .frame--footer .ft-contacto a {
+    padding: 6px 0;
+    margin: -6px 0;
+  }
+}
+
+/* =========================================================
+   CELULAR / PANTALLAS VERTICALES
+   El contacto baja debajo de Luis (no cabe a su lado) y el
+   texto crece para que se lea. Debe coincidir con isVertical()
+   de Hero.jsx: (max-aspect-ratio: 6/5)
+   Luis termina en top 188 + alto 124 = 312, así que el contacto
+   empieza en 318. --alto sube para que el contacto quepa.
+   ========================================================= */
+
+@media (max-aspect-ratio: 6/5) {
+  .hero .frame--footer {
+    --alto: 390;
+  }
+
+  .frame--footer .ft-contacto {
+    --fs: 21;
+
+    left: calc(20 * var(--pj));
+    top: calc((318 + var(--tuck)) * var(--pj));
+    width: calc(560 * var(--pj));
+  }
+
+  .frame--footer .ft-contacto p {
+    line-height: 1.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame--footer .ft-globo__cuerpo,
+  .frame--footer .ft-personaje__btn img {
+    transform: none !important;
+  }
+}

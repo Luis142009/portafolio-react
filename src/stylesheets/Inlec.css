@@ -1,0 +1,555 @@
+/* =========================================================
+   INLEC · ventana del proyecto "Súper Zorro"
+   Se abre al hacer clic en INLEC dentro de Proyectos.
+
+   COMPOSICIÓN (copiada de la imagen de referencia, 764 × 576)
+   ------------------------------------------------
+   Fondo naranja arriba y beige abajo, ambos con puntitos.
+   Título INLEC con la manzana, el personaje, el globo con el
+   texto y Súper Zorro al centro. A los lados, dos columnas
+   "PieZas" tipo carrusel: una baja y la otra sube. Cada pieza
+   va pegada con cinta sobre papel o dentro de un marco de madera.
+
+   CÓMO EDITAR
+   -----------
+   El lienzo mide 764 × 576 "px de referencia" (los mismos px de
+   la imagen modelo) y todo se escala solo con --pj. Cada pieza
+   se mueve con 4 números:
+
+       --x  (izq→der)   --y  (arriba→abajo)   --w  (ancho)   --h  (alto)
+
+   Las variables van SIN unidad.
+   PERSONAJE: --giro rotación (deg) · --esc escala extra.
+   GLOBO: --tx/--ty/--tw/--th caja del texto (en % del globo),
+          --tf tamaño de la letra.
+   ========================================================= */
+
+@font-face {
+    font-family: 'Smile';
+    src: local('Smile'),
+        local('Smile Regular'),
+        url('../assets/smile.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+.ic-modal {
+    /* ---- lienzo ---- */
+    --W: 764;
+    --alto: 576;
+
+    /* escala: la escena siempre cabe completa en la pantalla */
+    --fw: min(100vw, calc(100svh * var(--W) / var(--alto)));
+    --pj: calc(var(--fw) / var(--W));
+    /* 1 px de referencia */
+
+    --naranja: #f28c38;
+    --madera: #9b6330;
+    --tinta: #5b1f0b;
+
+    /* Veta de la madera (ruido estirado en horizontal) */
+    --veta: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='160'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.2' numOctaves='4' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.07 0 0 0 0 0.02 0 0 0 1.6 -0.55'/%3E%3C/filter%3E%3Crect width='320' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    /* fondo beige con puntitos */
+    background-color: #efe6da;
+    background-image: radial-gradient(circle, rgba(120, 90, 60, .14) 0 1.6px, transparent 2.2px);
+    background-size: 18px 18px;
+}
+
+/* franja naranja de arriba (llega hasta y = 196 del lienzo) */
+.ic-modal::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: calc(50% - var(--alto) * var(--pj) / 2 + 196 * var(--pj));
+    background-color: var(--naranja);
+    background-image:
+        radial-gradient(circle, rgba(255, 255, 255, .22) 0 2px, transparent 2.6px),
+        linear-gradient(90deg, rgba(120, 40, 0, .16), transparent 14%, transparent 86%, rgba(120, 40, 0, .16));
+    background-size: 16px 16px, 100% 100%;
+    box-shadow: 0 4px 0 rgba(150, 70, 10, .3);
+    pointer-events: none;
+}
+
+.ic-escena {
+    position: relative;
+    flex: none;
+    width: var(--fw);
+    height: calc(var(--alto) * var(--pj));
+    perspective: calc(1300 * var(--pj));
+    transform-style: preserve-3d;
+}
+
+/* ---------- Base de las capas ---------- */
+
+.ic-escena .layer {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* cada pieza se coloca con --x --y --w --h */
+.ic-escena .ic {
+    left: calc(var(--x) * var(--pj));
+    top: calc(var(--y) * var(--pj));
+    width: calc(var(--w) * var(--pj));
+    height: calc(var(--h) * var(--pj));
+}
+
+.ic-escena .ic .in {
+    width: 100%;
+    height: 100%;
+}
+
+.ic-escena .ic-mover {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.ic-escena .ic img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+
+/* =========================================================
+   COLUMNAS CARRUSEL (a los lados)
+   Se recortan justo debajo de la pestaña (y = 24) y sangran
+   por abajo.
+   ========================================================= */
+
+.ic-escena .ic-col {
+    --y: 24;
+    --w: 225;
+    --h: 556;
+}
+
+.ic-escena .ic-col--izq {
+    --x: 20;
+}
+
+.ic-escena .ic-col--der {
+    --x: 565;
+}
+
+.ic-escena .ic-col .in {
+    position: relative;
+}
+
+.ic-escena .ic-col__vista {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+.ic-escena .ic-col__pista {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+}
+
+/* barra de papel (barra.png): fija, detrás de las publicaciones que suben y bajan */
+.ic-escena .ic .ic-col__barra {
+    position: absolute;
+    top: calc(-50 * var(--pj));
+    left: -10%;            /* la centra: se pasa 10% por cada lado */
+    z-index: 0;
+    width: 130%;
+    max-width: none;       /* por si tu CSS global limita las imágenes */
+    height: 120%;
+    object-fit: fill;
+    pointer-events: none;
+}
+
+/* la de la derecha se inclina hacia el otro lado, como en la referencia */
+.ic-escena .ic-col--der .ic-col__barra {
+    transform: scaleX(-1);
+}
+
+/* ---------- Pieza: papel con cinta o marco de madera ---------- */
+
+.ic-escena .ic-pieza {
+    display: block;
+    flex: none;
+    box-sizing: border-box;
+    width: 100%;
+    padding: calc(12 * var(--pj)) calc(12 * var(--pj)) calc(14 * var(--pj));
+    border: 0;
+    background: none;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.ic-escena .ic-pieza__soporte {
+    position: relative;
+    display: block;
+    transform: rotate(var(--rot, 0deg));
+    transition: transform .25s;
+}
+
+/* cada pieza cuelga un poquito torcida, como en la referencia */
+.ic-escena .ic-col--izq .ic-pieza--papel { --rot: -2deg; }
+.ic-escena .ic-col--izq .ic-pieza--marco { --rot: -4deg; }
+.ic-escena .ic-col--der .ic-pieza--papel { --rot: 1.5deg; }
+.ic-escena .ic-col--der .ic-pieza--marco { --rot: 5deg; }
+
+.ic-escena .ic-pieza:nth-child(3n) .ic-pieza__soporte {
+    --rot: 2.2deg;
+}
+
+.ic-escena .ic-pieza:hover .ic-pieza__soporte,
+.ic-escena .ic-pieza:focus-visible .ic-pieza__soporte {
+    transform: rotate(0deg) scale(1.05);
+}
+
+.ic-escena .ic-pieza:focus-visible {
+    outline: none;
+}
+
+.ic-escena .ic-pieza:focus-visible .ic-pieza__soporte {
+    filter: drop-shadow(0 0 calc(3 * var(--pj)) #fff);
+}
+
+/* publicación suelta: solo la imagen, pegada con cinta sobre la barra */
+.ic-escena .ic-pieza--papel .ic-pieza__soporte {
+    filter: drop-shadow(calc(2 * var(--pj)) calc(4 * var(--pj)) calc(4 * var(--pj)) rgba(0, 0, 0, .3));
+}
+
+
+.ic-escena .ic-pieza--marco .ic-pieza__img {
+    box-shadow: 0 0 0 calc(2 * var(--pj)) #3b210e;
+}
+
+.ic-escena .ic-pieza:hover .ic-pieza__img {
+    filter: brightness(1.06) saturate(1.1);
+}
+
+.ic-escena .ic-pieza__vacio {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    background: linear-gradient(160deg, #3d83ff, #1c5fd4);
+    color: #fff;
+    font-family: "Titan", var(--font-title, "Arial Black"), sans-serif;
+    font-size: max(14px, calc(60 * var(--pj)));
+}
+
+/* cinta adhesiva en las esquinas (cinta.png) */
+.ic-escena .ic .ic-tape {
+    position: absolute;
+    z-index: 3;
+    width: calc(46 * var(--pj));
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.ic-escena .ic-tape--a {
+    left: calc(-14 * var(--pj));
+    top: calc(-4 * var(--pj));
+    transform: rotate(-38deg);
+}
+
+.ic-escena .ic-tape--b {
+    right: calc(-14 * var(--pj));
+    top: calc(-4 * var(--pj));
+    transform: rotate(38deg);
+}
+
+.ic-escena .ic-tape--c {
+    right: calc(-12 * var(--pj));
+    bottom: calc(-2 * var(--pj));
+    transform: rotate(-36deg);
+}
+
+/* =========================================================
+   TÍTULO INLEC + MANZANA, PERSONAJE, ZORRO, GLOBO, HUELLA
+   ========================================================= */
+
+.ic-escena .ic-manzana {
+    --x: 272;
+    --y: 38;
+    --w: 60;
+    --h: 58;
+}
+
+.ic-escena .ic-titulo {
+    --x: 338;
+    --y: 14;
+    --w: 190;
+    --h: 84;
+}
+
+.ic-escena .ic-personaje {
+    --x: 348;
+    --y: 150;
+    --w: 92;
+    --h: 115;
+
+    --giro: 40deg;  /* rotación; positivo = sentido del reloj */
+    --esc: 2;       /* escala extra: 1.2 = 20% más grande */
+}
+
+/* este div no lo toca GSAP al inicio: aquí vive la pose base */
+.ic-escena .ic-personaje__giro {
+    width: 100%;
+    height: 70%;
+    transform: rotate(var(--giro)) scale(var(--esc));
+    transform-origin: 50% 80%;
+}
+
+.ic-escena .ic-zorro {
+    --x: 288;
+    --y: 230;
+    --w: 252;
+    --h: 346;
+}
+
+.ic-escena .ic-zorro img {
+    object-position: 50% 100%;
+}
+
+.ic-escena .ic-huella {
+    --x: -154;
+    --y: 512;
+    --w: 54;
+    --h: 54;
+}
+
+.ic-escena .ic-globo {
+    --x: 296;
+    --y: 146;
+    --w: 238;
+    --h: 376;
+
+    /* caja del texto dentro del globo (en % del globo) y su tamaño */
+    --tx: 6;
+    --ty: 71;
+    --tw: 70;
+    --th: 24;
+    --tf: 8.6;
+}
+
+.ic-escena .ic-globo .in {
+    position: relative;
+}
+
+.ic-escena .ic-globo__texto {
+    position: absolute;
+    left: calc(var(--tx) * 1%);
+    top: calc(var(--ty) * 1%);
+    width: calc(var(--tw) * 1%);   /* antes: calc(var(--tw) * 6) → sin unidad, no era válido */
+    height: calc(var(--th) * 1%);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    color: #1a1a2e;
+    font-family: 'Smile', var(--font-body, sans-serif);
+    font-size: max(6px, calc(var(--tf) * var(--pj)));
+    line-height: 1.18;
+    text-align: left;
+    pointer-events: none;
+}
+
+/* =========================================================
+   BOTÓN CERRAR (pantalla completa): la estrella "stared"
+   ========================================================= */
+
+.ic-modal__x {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    cursor: pointer;
+    filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, .6));
+    transition: transform .25s;
+}
+
+.ic-modal__x img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.ic-modal__x:hover {
+    transform: scale(1.15) rotate(72deg);
+}
+
+.ic-modal__x:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
+/* =========================================================
+   VISOR DE PUBLICACIONES
+   Se dibuja en <body> (fuera del 3D), por eso usa px normales.
+   ========================================================= */
+
+.ic-visor {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    background: rgba(6, 10, 28, .88);
+    backdrop-filter: blur(6px);
+    animation: ic-visor-in .2s ease-out;
+}
+
+@keyframes ic-visor-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.ic-visor__fig {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-width: min(86vw, 720px);
+    max-height: 100%;
+    margin: 0;
+}
+
+.ic-visor__fig img {
+    display: block;
+    max-width: 100%;
+    max-height: 78vh;
+    border: 10px solid #8b5a2b;
+    border-radius: 6px;
+    box-shadow: 0 0 0 3px #3b210e, 0 12px 40px rgba(0, 0, 0, .6);
+}
+
+.ic-visor__vacio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: min(70vw, 420px);
+    aspect-ratio: 4 / 5;
+    border: 10px solid #8b5a2b;
+    border-radius: 6px;
+    background: linear-gradient(160deg, #3d83ff, #1c5fd4);
+    color: #fff;
+    font-family: "Titan", "Arial Black", sans-serif;
+    font-size: 72px;
+}
+
+.ic-visor__fig figcaption {
+    color: #f1e5c6;
+    font-family: "Titan", "Arial Black", sans-serif;
+    font-size: 14px;
+    letter-spacing: .03em;
+}
+
+/* flechas anterior / siguiente (siguen con su círculo amarillo) */
+.ic-visor__nav {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 3px solid #0d0f1a;
+    border-radius: 50%;
+    background: #f3b64a;
+    color: #0d0f1a;
+    font-family: "Titan", "Arial Black", sans-serif;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 2px 3px 0 #000;
+    transition: transform .15s;
+}
+
+.ic-visor__nav:hover {
+    transform: scale(1.1);
+}
+
+/* cerrar el post: la estrella "stared", sin círculo */
+.ic-visor__x {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    cursor: pointer;
+    filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, .6));
+    transition: transform .25s;
+}
+
+.ic-visor__x img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.ic-visor__x:hover {
+    transform: scale(1.15) rotate(72deg);
+}
+
+@media (max-width: 600px) {
+    .ic-visor {
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .ic-visor__nav {
+        width: 38px;
+        height: 38px;
+    }
+
+    .ic-visor__x,
+    .ic-modal__x {
+        width: 48px;
+        height: 48px;
+    }
+}

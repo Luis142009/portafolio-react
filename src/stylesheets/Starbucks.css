@@ -1,0 +1,362 @@
+/* Espacio de Starbucks (pantalla completa, como Inlec).
+   Variables que puedes tocar en .stx:
+   --stx-alto  → alto de los posts del carrusel (el ancho sale de cada imagen)
+   --stx-z     → capa: súbelo si algo queda tapado, bájalo si tu botón
+                 "Mis canciones" debe verse encima. */
+
+.stx {
+  --stx-verde: #00704a;
+  --stx-verde-osc: #0a2e24;
+  --stx-crema: #f2ecdc;
+  --stx-alto: min(50dvh, 110vw);
+  --stx-z: 8000;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--stx-z);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  overflow: hidden;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none; /* el dedo no mueve la página de atrás */
+  overscroll-behavior: contain;
+  color: var(--stx-crema);
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.14), transparent 55%),
+    radial-gradient(rgba(242, 236, 220, 0.12) 1.4px, transparent 1.6px) 0 0 / 22px 22px,
+    linear-gradient(160deg, var(--stx-verde) 0%, var(--stx-verde-osc) 100%);
+  animation: stx-entra 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Volver */
+.stx__volver {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px 10px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--stx-crema);
+  color: var(--stx-verde-osc);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stx__volver span {
+  font-size: 1.4em;
+  line-height: 0.8;
+}
+
+.stx__volver:hover {
+  transform: translateY(-1px);
+}
+
+.stx__volver:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.stx__volver:focus-visible,
+.stx__btn:focus-visible,
+.stx__dot:focus-visible,
+.stx__zoom-cerrar:focus-visible {
+  outline: 3px solid var(--stx-crema);
+  outline-offset: 3px;
+}
+
+/* Cabecera: título + texto del reto */
+.stx__cabecera {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 72px 0;
+  text-align: center;
+}
+
+.stx__titulo {
+  margin: 0;
+  font-size: clamp(2.2rem, 6vw, 4.2rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--stx-crema);
+  text-shadow:
+    0 4px 0 #04281f,
+    3px 6px 0 rgba(0, 0, 0, 0.3);
+  transform: rotate(-2deg);
+}
+
+/* Nota del reto: tarjeta crema, como una nota pegada */
+.stx__reto {
+  max-width: 58ch;
+  margin: 16px 0 0;
+  padding: 10px 18px;
+  border-radius: 14px;
+  background: var(--stx-crema);
+  color: var(--stx-verde-osc);
+  font-size: clamp(0.85rem, 1.5vw, 1rem);
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+  transform: rotate(0.6deg);
+}
+
+.stx__sub {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Escenario: posts apilados */
+.stx__stage {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  cursor: grab;
+}
+
+.stx__stage.is-drag {
+  cursor: grabbing;
+}
+
+/* Hasta que se recortan los márgenes no se muestran, para que no "salten" */
+.stx__stage:not(.is-listo) .stx__card {
+  visibility: hidden;
+}
+
+/* El cuadro mide exactamente lo que mide el post (alto fijo, ancho según la imagen) */
+.stx__card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: var(--stx-alto);
+  margin: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 5px var(--stx-crema),
+    0 18px 40px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transform:
+    translate(-50%, -50%)
+    translateX(calc(var(--off) * var(--stx-alto) * 0.62 + var(--drag, 0px)))
+    scale(calc(1 - var(--abs) * 0.14))
+    rotate(calc(var(--off) * 4deg));
+  filter: brightness(calc(1 - var(--abs) * 0.2));
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease,
+    filter 0.4s ease;
+  will-change: transform;
+}
+
+.stx__card.is-active {
+  cursor: zoom-in;
+}
+
+.stx__stage.is-drag .stx__card {
+  transition: none; /* sigue al dedo sin retraso */
+}
+
+.stx__card img {
+  display: block;
+  height: 100%;
+  width: auto;
+  pointer-events: none;
+}
+
+/* Controles */
+.stx__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 8px 16px max(20px, env(safe-area-inset-bottom));
+}
+
+.stx__btn {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--stx-crema);
+  color: var(--stx-verde-osc);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stx__btn:hover {
+  transform: translateY(-1px);
+}
+
+.stx__btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.stx__info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 150px;
+}
+
+.stx__nombre {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.stx__dots {
+  display: flex;
+  gap: 8px;
+}
+
+.stx__dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(242, 236, 220, 0.4);
+  cursor: pointer;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.stx__dot.is-on {
+  width: 28px;
+  background: var(--stx-crema);
+}
+
+/* Post en grande */
+.stx__zoom {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 22, 17, 0.92);
+  cursor: zoom-out;
+  animation: stx-zoom-fondo 0.25s ease-out;
+}
+
+.stx__zoom-img {
+  display: block;
+  max-width: min(92vw, 900px);
+  max-height: 86dvh;
+  width: auto;
+  height: auto;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 6px var(--stx-crema),
+    0 24px 60px rgba(0, 0, 0, 0.6);
+  animation: stx-zoom-img 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stx__zoom-cerrar {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--stx-crema);
+  color: var(--stx-verde-osc);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stx__zoom-flecha {
+  position: absolute;
+  top: 50%;
+  margin-top: -26px;
+}
+
+.stx__zoom-flecha--izq {
+  left: 14px;
+}
+
+.stx__zoom-flecha--der {
+  right: 14px;
+}
+
+.stx__zoom-nombre {
+  position: absolute;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: var(--stx-crema);
+  color: var(--stx-verde-osc);
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .stx__cabecera {
+    padding-inline: 16px;
+    padding-top: max(58px, env(safe-area-inset-top));
+  }
+
+  .stx__zoom-flecha {
+    width: 44px;
+    height: 44px;
+    margin-top: -22px;
+    font-size: 1.6rem;
+  }
+}
+
+@keyframes stx-entra {
+  from {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stx-zoom-fondo {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes stx-zoom-img {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stx,
+  .stx__card,
+  .stx__btn,
+  .stx__volver,
+  .stx__dot,
+  .stx__zoom,
+  .stx__zoom-img {
+    animation: none;
+    transition: none;
+  }
+}

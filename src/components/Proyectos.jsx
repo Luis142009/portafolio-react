@@ -1,6 +1,13 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import gsap from 'gsap';
 import '../stylesheets/Proyectos.css';
+
+// Audio compartido (un solo AudioContext) y cuerdas de la telaraña
+import { motorAudio, midiAHz } from './Audiomotor.js';
+import { sonidoCuerda } from './Proyectoscuerdasbloque.js';
+
+// Espacio de Starbucks (pantalla completa, como Inlec)
+import Starbucks from './Starbucks.jsx';
 
 import fondo from '../assets/seccion4.png';
 import circulo from '../assets/circulo.png';
@@ -31,6 +38,16 @@ const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // de araña. El DJ queda por delante, así que los rayos parecen
 // salir de detrás de su cuerpo.
 //
+// AUDIO: el motor (motorAudio, midiAHz) vive en ./Audiomotor.js y las
+// cuerdas de piano + guitarra en ./Proyectoscuerdasbloque.js. Aquí solo
+// se importan, así hay un único AudioContext para toda la escena.
+//
+// STARBUCKS: el rayo "starbuck" tiene accion: 'starbucks'. Al hacer clic
+// se abre <Starbucks /> (./Starbucks.jsx): un espacio propio a pantalla
+// completa, igual que Inlec, con el carrusel de posts. Se cierra con
+// "Volver" o con Esc. Mientras está abierto, la escena de atrás no
+// reacciona (ver enStarbucks en el segundo useEffect).
+//
 // FUEGO VIVO + INTERACCIÓN (ver el segundo useEffect):
 //   · Las llamas parpadean al azar (altura, ancho, inclinación),
 //     tienen ondas de calor (distorsión) y un brillo que respira.
@@ -50,18 +67,20 @@ const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 //   · TELARAÑA con FÍSICAS (ver crearRed): cada cruce de hilos es un
 //     nodo unido por resortes. Se mece sola con una brisa; si pasas
 //     el mouse la rozas y se enreda; con click vibra y resuena. Un
-//     click sobre un hilo lo puntea y suena como cuerda de BIWA
-//     (laúd japonés, cada hilo una nota). El golpe de los bafles, el título y el
-//     DROP también la sacuden, y el DROP la toca como un arpegio.
+//     click sobre un hilo lo puntea y suena como PIANO + GUITARRA
+//     ELÉCTRICA (cada hilo una nota). El golpe de los bafles, el
+//     título y el DROP también la sacuden, y el DROP la toca como
+//     un arpegio.
 // ---------------------------------------------------------
 
 // Para cambiar los proyectos edita estas dos listas
 // (texto, href y, si quieres, azul: true para el rayo azul).
+// accion: 'starbucks' hace que el clic abra la ventana en vez de navegar.
 const IZQUIERDA = [{ texto: 'Reproductor', href: '#' }];
 
 const DERECHA = [
-  { texto: 'Inlec', href: '#' },
-  { texto: 'starbuck', href: '#', azul: true },
+  { texto: 'starbuck', href: '#', accion: 'starbucks' },
+  { texto: 'Inlec', href: '#', azul: true },
   { texto: 'onikuma', href: '#' },
 ];
 
@@ -190,7 +209,9 @@ for (let i = 0; i < HILOS.length - 1; i += 1) {
 
 // ---------------------------------------------------------
 
-function Enlace({ texto, href = '#', ...resto }) {
+// onActivar: función extra que se llama al hacer clic (la usa "starbuck"
+// para abrir su ventana).
+function Enlace({ texto, href = '#', onActivar, ...resto }) {
   return (
     <a
       className="pj-enlace"
@@ -199,6 +220,7 @@ function Enlace({ texto, href = '#', ...resto }) {
       onClick={(e) => {
         // con href="#" no saltes al inicio de la página
         if (href === '#') e.preventDefault();
+        if (onActivar) onActivar();
       }}
       {...resto}
     >
@@ -208,8 +230,8 @@ function Enlace({ texto, href = '#', ...resto }) {
 }
 
 // Un rayo = forma negra (con grosor) + enlace flotando delante
-function Rayo({ lado, proyecto, config }) {
-  const { texto, href, azul } = proyecto;
+function Rayo({ lado, proyecto, config, onAbrir }) {
+  const { texto, href, azul, accion } = proyecto;
 
   return (
     <div
@@ -225,7 +247,12 @@ function Rayo({ lado, proyecto, config }) {
       }}
     >
       <span className="pj-rayo__forma" aria-hidden="true" />
-      <Enlace texto={texto} href={href} style={{ '--z': config.z }} />
+      <Enlace
+        texto={texto}
+        href={href}
+        style={{ '--z': config.z }}
+        onActivar={accion && onAbrir ? () => onAbrir(accion) : undefined}
+      />
     </div>
   );
 }
@@ -252,6 +279,8 @@ function Llama({ src }) {
 // ---------------------------------------------------------
 // SONIDO DE BAFLE (sintetizado con Web Audio, sin archivos)
 //
+// El motor de audio (motorAudio) vive en ./Audiomotor.js.
+//
 // Cada click en un bafle "golpea" el cono:
 //   · cuerpo   → seno que cae de agudo a grave (el "bum")
 //   · saturación → le da punch, como un parlante exigido
@@ -264,54 +293,8 @@ function Llama({ src }) {
 // Para cambiar el carácter edita los números de sonidoBafle():
 //   f0 / f1 → de qué frecuencia cae y a cuál llega (Hz)
 //   duración del cuerpo → los .7 (izq) y .45 (der)
-//   VOLUMEN → master.gain.value
+//   VOLUMEN → master.gain.value (en Audiomotor.js)
 // ---------------------------------------------------------
-let audio = null;
-
-function motorAudio() {
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return null;
-
-  if (!audio) {
-    const ctx = new AC();
-
-    const master = ctx.createGain();
-    master.gain.value = 0.9; // VOLUMEN
-
-    // limitador suave para que nunca sature ni suene feo
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14;
-    comp.ratio.value = 8;
-
-    master.connect(comp);
-    comp.connect(ctx.destination);
-
-    // bus de la canción (se mezcla con el golpe de cada click)
-    const bus = ctx.createGain();
-    bus.gain.value = 0.7;
-    bus.connect(master);
-
-    // ruido blanco corto (para el chasquido del ataque)
-    const largo = Math.floor(ctx.sampleRate * 0.1);
-    const buf = ctx.createBuffer(1, largo, ctx.sampleRate);
-    const datos = buf.getChannelData(0);
-    for (let i = 0; i < largo; i += 1) datos[i] = Math.random() * 2 - 1;
-
-    // curva de saturación
-    const curva = new Float32Array(256);
-    for (let i = 0; i < 256; i += 1) {
-      curva[i] = Math.tanh((i / 128 - 1) * 2.5);
-    }
-
-    audio = { ctx, master, bus, buf, curva };
-  }
-
-  // los navegadores bloquean el audio hasta el primer click: aquí se activa
-  if (audio.ctx.state === 'suspended') audio.ctx.resume();
-
-  return audio;
-}
-
 function sonidoBafle(lado) {
   const a = motorAudio();
   if (!a) return null;
@@ -427,8 +410,6 @@ const BPM = 120;
 const PASO = 60 / BPM / 4; // una semicorchea, en segundos
 const NIVEL_MAX = 4;
 const SILENCIO_MS = 9000;
-
-const midiAHz = (m) => 440 * 2 ** ((m - 69) / 12);
 
 // bajo = nota grave del compás · notas = acorde (números MIDI)
 const ACORDES = [
@@ -966,146 +947,13 @@ function sonidoTitulo() {
   });
 }
 
-// BIWA (laúd japonés): cada hilo de la telaraña es una cuerda con su nota.
-// Escala japonesa "In" sobre La (La, Si♭, Re, Mi, Fa y las mismas una
-// octava arriba, de grave a aguda): suena a música japonesa tradicional
-// sin importar el orden en que toques los hilos.
-const ESCALA_BIWA = [57, 58, 62, 64, 65, 69, 70, 74, 76, 77];
-
-// Curva de distorsión dura: es el "sawari", el zumbido característico
-// de la biwa (la cuerda roza el borde del mástil al vibrar).
-const CURVA_SAWARI = (() => {
-  const c = new Float32Array(256);
-  for (let i = 0; i < 256; i += 1) {
-    const x = i / 128 - 1;
-    c[i] = Math.sign(x) * Math.abs(x) ** 0.35;
-  }
-  return c;
-})();
-
-// Cómo se construye una nota de biwa:
-//   1. cuerda     → diente de sierra con filtro que se cierra y caída rápida
-//   2. sawari     → armónico distorsionado y breve (el zumbido)
-//   3. plectro    → golpe seco de ruido (la púa "bachi" contra la cuerda)
-//   4. caja       → seno grave muy corto (la madera golpeada)
-//   5. oshi       → en algunos hilos la cuerda se presiona después de
-//                   puntearla y el tono sube un poco (técnica típica)
-// Cada hilo suena un poco más a la izquierda o a la derecha.
-//
-// Ajustes: dur (largo de la nota) · el 1.059 (cuánto sube el oshi,
-// 1.059 = un semitono) · los .26 / .09 / .3 / .18 (volumen de cada parte)
-function sonidoCuerda(idx, retardo = 0, vol = 1) {
-  const a = motorAudio();
-  if (!a) return;
-
-  const { ctx, master, buf } = a;
-  const t = ctx.currentTime + retardo;
-  const nota = ESCALA_BIWA[idx % ESCALA_BIWA.length];
-  const hz = 440 * 2 ** ((nota - 69) / 12);
-  const dur = 1.1;
-  const oshi = idx % 3 === 0;
-
-  // salida con paneo según el hilo
-  const salida = ctx.createGain();
-  if (ctx.createStereoPanner) {
-    const pan = ctx.createStereoPanner();
-    pan.pan.value = ((idx % 10) / 9) * 1.2 - 0.6;
-    salida.connect(pan);
-    pan.connect(master);
-  } else {
-    salida.connect(master);
-  }
-
-  // frecuencia con el "oshi" opcional (sube un semitono tras puntear)
-  const afinar = (osc, mult) => {
-    osc.frequency.setValueAtTime(hz * mult, t);
-    if (oshi) {
-      osc.frequency.setValueAtTime(hz * mult, t + 0.05);
-      osc.frequency.exponentialRampToValueAtTime(hz * mult * 1.059, t + 0.3);
-    }
-  };
-
-  // 1) cuerda
-  const o = ctx.createOscillator();
-  o.type = 'sawtooth';
-  afinar(o, 1);
-
-  const f = ctx.createBiquadFilter();
-  f.type = 'lowpass';
-  f.Q.value = 2;
-  f.frequency.setValueAtTime(hz * 7, t);
-  f.frequency.exponentialRampToValueAtTime(hz * 1.8, t + dur * 0.7);
-
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.26 * vol, t + 0.003);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-  o.connect(f);
-  f.connect(g);
-  g.connect(salida);
-  o.start(t);
-  o.stop(t + dur + 0.05);
-
-  // 2) sawari: zumbido breve
-  const z = ctx.createOscillator();
-  z.type = 'sawtooth';
-  afinar(z, 2);
-
-  const ws = ctx.createWaveShaper();
-  ws.curve = CURVA_SAWARI;
-
-  const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.value = hz * 3;
-  bp.Q.value = 3;
-
-  const gz = ctx.createGain();
-  gz.gain.setValueAtTime(0.09 * vol, t);
-  gz.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-
-  z.connect(ws);
-  ws.connect(bp);
-  bp.connect(gz);
-  gz.connect(salida);
-  z.start(t);
-  z.stop(t + 0.3);
-
-  // 3) plectro: golpe seco de ruido
-  const ruido = ctx.createBufferSource();
-  ruido.buffer = buf;
-
-  const bpr = ctx.createBiquadFilter();
-  bpr.type = 'bandpass';
-  bpr.frequency.value = 2200;
-  bpr.Q.value = 1.1;
-
-  const gr = ctx.createGain();
-  gr.gain.setValueAtTime(0.3 * vol, t);
-  gr.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
-
-  ruido.connect(bpr);
-  bpr.connect(gr);
-  gr.connect(salida);
-  ruido.start(t);
-  ruido.stop(t + 0.05);
-
-  // 4) caja: la madera golpeada
-  const c = ctx.createOscillator();
-  c.type = 'sine';
-  c.frequency.value = hz * 0.5;
-
-  const gc = ctx.createGain();
-  gc.gain.setValueAtTime(0.18 * vol, t);
-  gc.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-
-  c.connect(gc);
-  gc.connect(salida);
-  c.start(t);
-  c.stop(t + 0.15);
-}
+// (sonidoCuerda — piano + guitarra eléctrica — se importa desde
+//  ./Proyectoscuerdasbloque.js)
 
 export default function Proyectos({ izquierda = IZQUIERDA, derecha = DERECHA }) {
+  // Espacio abierto ahora mismo: 'starbucks' o null
+  const [ventana, setVentana] = useState(null);
+
   // ---------------------------------------------------------
   // APARICIÓN TIPO VIDEOJUEGO: la telaraña sale del DJ
   //
@@ -1657,7 +1505,8 @@ export default function Proyectos({ izquierda = IZQUIERDA, derecha = DERECHA }) 
 
       onda(ORIGEN.x, ORIGEN.y + 40, 160);
 
-      // onda de choque desde el DJ + la telaraña se toca como una biwa
+      // onda de choque desde el DJ + la telaraña se toca como un arpegio
+      // de piano y guitarra
       sacudir(ORIGEN.x, ORIGEN.y, 6, 420);
       for (let i = 0; i < HILOS.length; i += 1) sonidoCuerda(i, i * 0.045, 0.8);
 
@@ -1720,7 +1569,22 @@ export default function Proyectos({ izquierda = IZQUIERDA, derecha = DERECHA }) 
       document.body.style.cursor = si ? 'pointer' : '';
     };
 
+    // ¿El puntero está sobre el espacio de Starbucks (que tapa toda la pantalla)?
+    const enStarbucks = (e) =>
+      !!(e.target && e.target.closest && e.target.closest('.stx'));
+
     const onMove = (e) => {
+      // con Starbucks abierto, la escena de atrás se queda quieta
+      if (enStarbucks(e)) {
+        if (sobreTitulo) tituloSalir();
+        lista.forEach((f) => {
+          f.vObj = 0;
+        });
+        ultimoPunto = null;
+        ponerCursor(false);
+        return;
+      }
+
       if (!visible || !enEscena(e.clientX, e.clientY)) {
         lista.forEach((f) => {
           f.vObj = 0;
@@ -1816,6 +1680,9 @@ export default function Proyectos({ izquierda = IZQUIERDA, derecha = DERECHA }) 
     };
 
     const onClick = (e) => {
+      // un clic dentro de Starbucks no debe tocar la escena de atrás
+      if (enStarbucks(e)) return;
+
       if (!visible || !enEscena(e.clientX, e.clientY)) return;
       if (e.target.closest && e.target.closest('a, button, input, textarea')) return;
 
@@ -1839,7 +1706,7 @@ export default function Proyectos({ izquierda = IZQUIERDA, derecha = DERECHA }) 
         }
       }
 
-      // 1.5.º un hilo de la telaraña: se puntea y suena como cuerda
+      // 1.5.º un hilo de la telaraña: se puntea y suena (piano + guitarra)
       //       (tiene prioridad sobre el fuego y el DJ)
       if (red && pv) {
         const c = red.cerca(pv.x, pv.y);
@@ -2162,10 +2029,22 @@ export default function Proyectos({ izquierda = IZQUIERDA, derecha = DERECHA }) 
         <div className="in">
           <nav className="pj-rayos__nav" aria-label="Proyectos">
             {izquierda.map((p, i) => (
-              <Rayo key={p.texto} lado="izq" proyecto={p} config={configDe(RAYOS_IZQ, i)} />
+              <Rayo
+                key={p.texto}
+                lado="izq"
+                proyecto={p}
+                config={configDe(RAYOS_IZQ, i)}
+                onAbrir={setVentana}
+              />
             ))}
             {derecha.map((p, i) => (
-              <Rayo key={p.texto} lado="der" proyecto={p} config={configDe(RAYOS_DER, i)} />
+              <Rayo
+                key={p.texto}
+                lado="der"
+                proyecto={p}
+                config={configDe(RAYOS_DER, i)}
+                onAbrir={setVentana}
+              />
             ))}
           </nav>
         </div>
@@ -2180,6 +2059,13 @@ export default function Proyectos({ izquierda = IZQUIERDA, derecha = DERECHA }) 
           />
         </div>
       </div>
+
+      {/* ESPACIO DE STARBUCKS: se abre con el clic en "starbuck" (va en un
+          portal, fuera del 3D del Hero) */}
+      <Starbucks
+        abierto={ventana === 'starbucks'}
+        onCerrar={() => setVentana(null)}
+      />
     </>
   );
 }
